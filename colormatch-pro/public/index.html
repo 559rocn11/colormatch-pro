@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<!-- REVISED 2026-11-25: 18 audit fixes + corporate polish. Source: diamond-v2.html (v4.1.0 live). Rollback: re-deploy the .bak copy. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="ColorMatch Pro — find your exact makeup shade from a selfie. 1,900+ shades, 62 brands, real prices.">
+<meta property="og:title" content="ColorMatch Pro — Find Your Shade">
+<meta property="og:description" content="Find your exact makeup shade from a selfie. 1,900+ shades, 62 brands, real prices.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0f'/%3E%3Cpath d='M32 8 L52 32 L32 56 L12 32 Z' fill='%23e8b04e'/%3E%3C/svg%3E">
+<title>ColorMatch Pro — Find Your Shade</title>
+<style>
+:root{--bg:#0a0a0f;--surface:rgba(26,26,35,.88);--surface2:rgba(38,38,48,.92);--solid:#14141c;--gold:#e8b04e;--gold2:#c8852e;--grad:linear-gradient(135deg,#e8b04e 0%,#c8852e 100%);--text:#f5f5f7;--dim:#9a9aa8;--mute:#6a6a78;--border:rgba(255,255,255,.09);--border2:rgba(255,255,255,.15);--r:18px;--rs:12px;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);--font:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif;--shadow:0 8px 32px rgba(0,0,0,.45)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#000}
+body{color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;position:fixed;inset:0}
+/* ═══ CAMERA STAGE — the whole app ═══ */
+#stage{position:fixed;inset:0;background:#000;z-index:1}
+#stage video,#stage img{width:100%;height:100%;display:block;object-fit:cover}
+#stage .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--dim);padding:24px;background:radial-gradient(ellipse at center,rgba(232,176,78,.07),transparent 70%)}
+#stage .ph .big{font-size:16px;font-weight:700;color:var(--text);margin-top:14px}
+#stage .ph .small{font-size:13px;color:var(--mute);margin-top:4px}
+.face-oval{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:64%;height:52%;border:2.5px solid rgba(232,176,78,.9);border-radius:50%;pointer-events:none;box-shadow:0 0 0 4000px rgba(0,0,0,.30),0 0 44px rgba(232,176,78,.28);animation:ovpulse 2.6s ease-in-out infinite;z-index:2}
+@keyframes ovpulse{0%,100%{opacity:.55}50%{opacity:.95}}
+/* ═══ HUD — overlaid on camera ═══ */
+#hud{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+#hud>*{pointer-events:auto}
+.hud-top{display:flex;align-items:flex-start;justify-content:space-between;padding:calc(12px + var(--safe-t)) 16px 0}
+.hud-top h1{font-size:19px;font-weight:800;letter-spacing:-.5px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:none}
+.hud-top h1 span{font-size:9px;font-weight:800;letter-spacing:2px;color:var(--gold);-webkit-text-fill-color:var(--gold);vertical-align:middle;margin-left:6px;border:1px solid rgba(232,176,78,.5);border-radius:6px;padding:2px 6px}
+.hud-top .counts{font-size:11px;color:rgba(255,255,255,.65);font-weight:600;margin-top:2px;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.hud-top .prof{width:42px;height:42px;border-radius:50%;background:rgba(10,10,15,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:19px;cursor:pointer;flex-shrink:0}
+.live-chip{position:absolute;left:16px;top:calc(76px + var(--safe-t));z-index:11;display:none;align-items:center;gap:8px;background:rgba(10,10,15,.68);backdrop-filter:blur(10px);border:1px solid var(--border2);border-radius:20px;padding:7px 12px;font-size:12.5px;font-weight:700}
+.live-chip.on{display:flex}
+.live-chip .dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.35);flex-shrink:0}
+.live-chip .rec{width:7px;height:7px;border-radius:50%;background:#f87171;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.hud-bottom{padding:0 16px calc(14px + var(--safe-b));background:linear-gradient(transparent,rgba(0,0,0,.55))}
+.tool-pills{display:flex;justify-content:center;gap:8px;margin-bottom:12px}
+.tool-pill{padding:9px 18px;border-radius:22px;border:1px solid rgba(255,255,255,.28);background:rgba(10,10,15,.6);backdrop-filter:blur(10px);color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+.tool-pill:active{background:rgba(232,176,78,.25)}
+.chip-row{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chip-row::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;padding:9px 15px;border-radius:20px;border:1px solid rgba(255,255,255,.28);background:rgba(10,10,15,.6);backdrop-filter:blur(10px);color:rgba(255,255,255,.85);font-size:13px;font-weight:600;cursor:pointer;min-height:38px;white-space:nowrap}
+.chip.active{border-color:var(--gold);color:var(--gold);background:rgba(232,176,78,.18)}
+.cat-row{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.cat-row::-webkit-scrollbar{display:none}
+.cat-btn{flex-shrink:0;padding:9px 15px;border-radius:20px;border:1px solid rgba(255,255,255,.28);background:rgba(10,10,15,.6);backdrop-filter:blur(10px);color:rgba(255,255,255,.85);font-size:13px;font-weight:600;cursor:pointer;min-height:38px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.cat-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(232,176,78,.18)}
+.capture-row{display:flex;align-items:center;justify-content:center;gap:30px}
+.cap-btn{width:74px;height:74px;border-radius:50%;border:4px solid var(--gold);background:rgba(232,176,78,.16);cursor:pointer;position:relative;flex-shrink:0}
+.cap-btn::after{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--grad)}
+.cap-btn:active{transform:scale(.92)}
+.side-btn{width:50px;height:50px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(10,10,15,.6);backdrop-filter:blur(10px);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.side-btn:active{transform:scale(.93)}
+.cap-label{text-align:center;font-size:12px;color:rgba(255,255,255,.75);font-weight:600;margin-top:10px;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+/* ═══ BOTTOM SHEET — results slide up over camera ═══ */
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;max-height:76dvh;background:#101018;border-radius:26px 26px 0 0;box-shadow:0 -12px 48px rgba(0,0,0,.6);transform:translateY(105%);transition:transform .38s cubic-bezier(.32,.72,.35,1);display:flex;flex-direction:column}
+#sheet.open{transform:translateY(0)}
+.sheet-grip{padding:10px 0 4px;display:flex;justify-content:center;flex-shrink:0;cursor:pointer}
+.sheet-grip::before{content:'';width:44px;height:5px;border-radius:3px;background:rgba(255,255,255,.25)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 10px;flex-shrink:0}
+.sheet-head .t{font-size:17px;font-weight:800}
+.sheet-head .x{width:34px;height:34px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:15px;cursor:pointer}
+#sheetBody{overflow-y:auto;padding:0 18px calc(22px + var(--safe-b));-webkit-overflow-scrolling:touch}
+/* ═══ FULL PANEL — tools slide in over camera ═══ */
+#panel{position:fixed;inset:0;z-index:40;background:var(--bg);transform:translateX(103%);transition:transform .32s cubic-bezier(.32,.72,.35,1);display:flex;flex-direction:column}
+#panel.open{transform:translateX(0)}
+.panel-head{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:calc(14px + var(--safe-t)) 16px 12px;border-bottom:1px solid var(--border)}
+.panel-head .back{width:38px;height:38px;border-radius:50%;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-size:17px;cursor:pointer;flex-shrink:0}
+.panel-head .t{font-size:18px;font-weight:800;flex:1}
+#panelBody{flex:1;overflow-y:auto;padding:18px 16px calc(24px + var(--safe-b));-webkit-overflow-scrolling:touch;max-width:620px;margin:0 auto;width:100%}
+/* shared bits */
+h2{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:4px 0}
+.sub{font-size:14px;color:var(--dim);line-height:1.6;margin-bottom:18px}
+.section-h{font-size:16px;font-weight:800;margin:20px 0 12px;display:flex;align-items:center;gap:8px}
+.section-h .count{font-size:12px;color:var(--mute);font-weight:600;background:var(--surface2);padding:3px 9px;border-radius:8px}
+.btn{padding:14px 22px;border-radius:var(--rs);border:none;font-size:15px;font-weight:700;cursor:pointer;min-height:50px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-p{background:var(--grad);color:#0a0a0f;box-shadow:0 4px 24px rgba(232,176,78,.18)}
+.btn-p:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-g{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
+.btn-g:active{background:var(--surface2)}
+.btn-blk{width:100%}
+.btn-sm{padding:9px 16px;min-height:40px;font-size:13px}
+.spin{text-align:center;padding:42px 20px}
+.spin .r{width:46px;height:46px;border:3px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:rot .8s linear infinite;margin:0 auto 14px}
+@keyframes rot{to{transform:rotate(360deg)}}
+.spin p{color:var(--dim);font-size:14px;font-weight:600}
+.spin .sub{color:var(--mute);font-size:12px;margin-top:6px}
+.rbar{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:18px;margin:6px 0 8px;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow)}
+.dot{width:54px;height:54px;border-radius:50%;flex-shrink:0;border:2px solid var(--border2);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.rbar .info{flex:1;min-width:0}
+.rbar .lbl{font-size:11px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.8px}
+.rbar .val{font-size:18px;font-weight:800;margin:2px 0}
+.rbar .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{font-size:11.5px;padding:4px 10px;border-radius:10px;background:var(--surface2);color:var(--dim);font-weight:600}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:440px){.grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:16px;position:relative;box-shadow:var(--shadow)}
+.card .tr{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.card .sw{width:46px;height:46px;border-radius:12px;flex-shrink:0;border:1px solid var(--border2)}
+.card .ci{flex:1;min-width:0}
+.card .br{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:6px}
+.card .sh{font-size:12.5px;color:var(--dim);margin:2px 0}
+.card .pr{font-size:11.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .pills{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}
+.card .pill{font-size:10.5px;padding:3px 8px;border-radius:8px;background:var(--surface2);color:var(--dim);font-weight:600}
+.card .br-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.card .price{font-size:17px;font-weight:800}
+.card .match{font-size:12px;font-weight:800;color:var(--gold)}
+.card .shop{color:var(--gold);font-size:13.5px;text-decoration:none;font-weight:700}
+.card .logo{width:22px;height:22px;border-radius:6px;object-fit:contain;flex-shrink:0}
+.mono{width:22px;height:22px;border-radius:6px;background:var(--grad);color:#0a0a0f;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.mono-lg{width:56px;height:56px;border-radius:14px;font-size:17px}
+.card .bm{position:absolute;top:10px;right:10px;background:var(--surface2);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;color:var(--mute);display:flex;align-items:center;justify-content:center}
+.card .bm.saved{color:var(--gold);background:rgba(232,176,78,.12);border-color:var(--gold)}
+.confirm-card.sel .card{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,176,78,.55)}
+.dupe-badge{background:rgba(74,222,128,.13);color:#4ade80;font-size:10px;padding:3px 8px;border-radius:8px;margin-left:6px;font-weight:700}
+.dupe-section{margin-top:22px;padding-top:16px;border-top:1px solid var(--border)}
+.dupe-section h3{font-size:15px;font-weight:800;margin-bottom:12px;color:#4ade80}
+.search{width:100%;padding:14px 16px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:15px;font-weight:600;margin-bottom:14px;outline:none}
+.search:focus{border-color:var(--gold)}
+.search::placeholder{color:var(--mute)}
+.brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(min-width:440px){.brand-grid{grid-template-columns:1fr 1fr 1fr}}
+.brand-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:18px 14px;text-align:center;cursor:pointer;box-shadow:var(--shadow)}
+.brand-card:active{border-color:rgba(232,176,78,.4);transform:scale(.98)}
+.brand-card .bl{width:56px;height:56px;border-radius:14px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border2);overflow:hidden}
+.brand-card .bl img{width:44px;height:44px;object-fit:contain}
+.brand-card .bn{font-size:13.5px;font-weight:700}
+.brand-card .bc{font-size:11.5px;color:var(--dim);margin-top:3px}
+.tool-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:18px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow)}
+.tool-card:active{border-color:rgba(232,176,78,.4)}
+.tool-card .ti{font-size:26px;width:52px;height:52px;border-radius:14px;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tool-card .tt{flex:1}
+.tool-card .tn{font-size:15.5px;font-weight:800}
+.tool-card .td{font-size:12.5px;color:var(--dim);margin-top:2px;line-height:1.5}
+.tool-card .ar{color:var(--gold);font-size:18px;font-weight:800}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:18px;text-align:center;box-shadow:var(--shadow)}
+.stat .n{font-size:30px;font-weight:900;color:var(--gold)}
+.stat .l{font-size:11px;color:var(--dim);margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+.health-ring{width:128px;height:128px;margin:0 auto 14px;position:relative}
+.health-ring svg{transform:rotate(-90deg)}
+.health-ring .bg{stroke:var(--border2);fill:none;stroke-width:7}
+.health-ring .fg{stroke-width:7;stroke-linecap:round;fill:none;transition:stroke-dashoffset 1s ease}
+.health-ring .num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:34px;font-weight:900}
+.zone-map{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.zone{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rs);padding:14px;text-align:center}
+.zone .zn{font-size:13px;font-weight:800;margin-bottom:4px}
+.zone .zv{font-size:11.5px;color:var(--dim)}
+.zone.alert{border-color:rgba(248,113,113,.35);background:rgba(248,113,113,.05)}
+.zone.ok{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
+.issues{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.issue{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:16px;display:flex;align-items:center;gap:14px}
+.issue .sev-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor}
+.issue .txt{flex:1}
+.issue .txt .t{font-size:14.5px;font-weight:700}
+.issue .txt .d{font-size:12px;color:var(--dim);margin-top:2px}
+.tip-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.tip-card .th{font-size:14px;font-weight:700;margin-bottom:6px}
+.tip-card .td{font-size:13px;color:var(--dim);line-height:1.7}
+.note-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.note-section h4{font-size:11px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.note-chip{padding:8px 12px;border-radius:18px;border:1px solid var(--border2);background:var(--surface);color:var(--dim);font-size:12.5px;cursor:pointer;display:inline-block;margin:3px;min-height:36px;font-weight:600}
+.note-chip.active{border-color:var(--gold);color:var(--gold);background:rgba(232,176,78,.09)}
+.cologne-card,.store-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.cologne-card .top,.store-card .top{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.cologne-card .nm,.store-card .nm{font-size:15px;font-weight:800}
+.cologne-card .brand,.store-card .dist{font-size:13px;color:var(--dim);margin-top:2px}
+.cologne-card .notes{font-size:12.5px;color:var(--dim);margin:10px 0;line-height:1.7}
+.cologne-card .notes b{color:var(--text);font-weight:600}
+.cologne-card .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.cologne-card .meta span{font-size:11px;padding:4px 9px;border-radius:8px;background:var(--surface2);color:var(--dim);font-weight:600}
+.cologne-card .sim{color:var(--gold);font-size:14px;font-weight:800}
+.cologne-card .savings{color:#4ade80;font-size:14px;font-weight:800}
+.store-card .brands{font-size:12.5px;color:var(--dim);margin-top:8px;line-height:1.7}
+.store-card .cats{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
+.store-card .cat-tag{font-size:10.5px;padding:3px 8px;border-radius:8px;background:var(--surface2);color:var(--dim);font-weight:600}
+.store-card .search-link{display:inline-flex;align-items:center;gap:4px;margin-top:10px;color:var(--gold);font-size:13px;text-decoration:none;font-weight:700}
+.frow{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.frow select{flex:1;min-width:120px;padding:12px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:13.5px;font-weight:600;min-height:48px}
+.browse-g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(min-width:440px){.browse-g{grid-template-columns:1fr 1fr 1fr}}
+.browse-c{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rs);padding:12px;text-align:center;cursor:pointer}
+.browse-c:active{transform:scale(.97)}
+.browse-c .sw{width:100%;height:72px;border-radius:var(--rs);margin-bottom:8px;border:1px solid var(--border2)}
+.browse-c .br{font-size:11.5px;font-weight:700}
+.browse-c .sh{font-size:10.5px;color:var(--dim);margin-top:2px}
+.browse-c .price{font-size:13.5px;font-weight:800;color:var(--gold);margin-top:4px}
+.sel{width:100%;padding:14px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:14.5px;font-weight:600;margin-bottom:12px;min-height:50px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23999' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.empty{text-align:center;padding:48px 24px;color:var(--dim)}
+.empty p{margin-top:8px;font-size:14px}
+.empty .hint{font-size:12px;color:var(--mute);margin-top:6px}
+.saved-h{font-size:15px;font-weight:800;margin:20px 0 10px}
+.saved-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.saved-scroll::-webkit-scrollbar{display:none}
+.saved-i{flex-shrink:0;text-align:center}
+.saved-i .sw{width:54px;height:54px;border-radius:12px;border:1px solid var(--border2);margin:0 auto 4px}
+.saved-i .nm{font-size:10px;color:var(--dim);width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.s-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px;text-align:center;box-shadow:var(--shadow)}
+.s-card .nm{font-size:14px;font-weight:800;text-transform:capitalize;margin-bottom:10px}
+.s-card .sw{width:50px;height:50px;border-radius:50%;margin:0 auto 8px;border:2px solid var(--border2)}
+.s-card .ut{font-size:11px;color:var(--dim)}
+/* ═══ AR OVERLAY ═══ */
+.ar{position:fixed;inset:0;z-index:500;background:#000;display:none;flex-direction:column}
+.ar.open{display:flex}
+.ar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ar .tint{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:64%;height:52%;border-radius:50%;pointer-events:none;transition:background .25s}
+.ar .oval{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:64%;height:52%;border:2px solid rgba(255,255,255,.55);border-radius:50%;pointer-events:none}
+.ar .top{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:calc(14px + var(--safe-t)) 16px 0}
+.ar .top .t{font-size:15px;font-weight:800;text-shadow:0 1px 8px rgba(0,0,0,.7)}
+.ar .x{width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:18px;cursor:pointer}
+.ar .ctl{position:absolute;left:0;right:0;bottom:0;z-index:5;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:20px 18px calc(18px + var(--safe-b))}
+.ar .ctl .shade-name{text-align:center;font-size:15px;font-weight:800;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.ar .ctl .shade-sub{text-align:center;font-size:12.5px;color:rgba(255,255,255,.75);margin-top:2px}
+.ar .rail{display:flex;gap:10px;overflow-x:auto;padding:14px 2px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.ar .rail::-webkit-scrollbar{display:none}
+.ar .rail .sw{flex-shrink:0;width:46px;height:46px;border-radius:50%;border:3px solid transparent;cursor:pointer}
+.ar .rail .sw.on{border-color:#fff;box-shadow:0 0 0 2px var(--gold)}
+.ar .slider-row{display:flex;align-items:center;gap:12px;margin-top:8px}
+.ar .slider-row span{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.8);white-space:nowrap}
+.ar input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:rgba(255,255,255,.3);outline:none}
+.ar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:var(--gold);cursor:pointer}
+.ar .note{text-align:center;font-size:11px;color:rgba(255,255,255,.55);margin-top:10px}
+.toast{position:fixed;bottom:calc(110px + var(--safe-b));left:50%;transform:translateX(-50%) translateY(20px);background:var(--solid);color:var(--text);padding:14px 22px;border-radius:28px;font-size:14px;font-weight:600;z-index:1000;opacity:0;pointer-events:none;transition:all .3s;border:1px solid var(--border2);max-width:90vw;text-align:center;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="ph" id="stagePh"><div style="font-size:44px">📷</div><div class="big">Opening your camera…</div><div class="small">Point it at your face in natural light</div></div>
+  <div class="face-oval" id="faceOval" style="display:none"></div>
+</div>
+<div id="hud">
+  <div class="hud-top">
+    <div><h1>ColorMatch Pro<span>DIAMOND</span></h1><div class="counts" id="dbStats">Loading shades…</div></div>
+    <button class="prof" onclick="openPanel('profile')" title="My profile">👤</button>
+  </div>
+  <div class="live-chip" id="liveChip"><span class="rec"></span><span class="dot" id="liveDot" style="background:#888"></span><span id="liveTxt">Reading skin…</span></div>
+  <div class="hud-bottom">
+    <div class="tool-pills">
+      <button class="tool-pill" onclick="openPanel('brands')">🏷️ Brands</button>
+      <button class="tool-pill" onclick="openPanel('matches')">💄 Matches</button>
+      <button class="tool-pill" onclick="openPanel('tools')">✨ Tools</button>
+    </div>
+    <div class="cat-row" id="catTabs"></div>
+    <div class="chip-row" id="lightChips"><span style="font-size:11px;color:rgba(255,255,255,.6);font-weight:700;align-self:center;padding-right:2px">LIGHT</span>
+      <button class="chip active" data-lighting="natural" onclick="selectLighting(this)">☀️ Natural</button>
+      <button class="chip" data-lighting="warm_indoor" onclick="selectLighting(this)">🏠 Indoor</button>
+      <button class="chip" data-lighting="outdoor_sun" onclick="selectLighting(this)">🌊 Bright Sun</button>
+      <button class="chip" id="wbChip" onclick="toggleCalibrate()">📄 White card</button>
+    </div>
+    <div class="capture-row">
+      <button class="side-btn" id="flipBtn" onclick="flipCamera()" title="Flip camera" style="visibility:hidden">🔄</button>
+      <button class="cap-btn" id="capBtn" onclick="captureFlow()" aria-label="Camera"></button>
+      <button class="side-btn" onclick="document.getElementById('uploadInput').click()" title="Upload photo">🖼️</button>
+      <input type="file" id="uploadInput" accept="image/*" style="display:none" onchange="onUpload(event)">
+    </div>
+    <div class="cap-label" id="capLabel">Tap the gold button to start your camera</div>
+    <div class="cap-label" id="swipeHint" style="font-size:11px;color:rgba(255,255,255,.5);margin-top:4px">Swipe &larr; brands &middot; &rarr; matches &middot; &uarr; tools</div>
+  </div>
+</div>
+<div id="sheet">
+  <div class="sheet-grip" onclick="closeSheet()"></div>
+  <div class="sheet-head"><span class="t" id="sheetTitle">Your match</span><button class="x" onclick="closeSheet()">✕</button></div>
+  <div id="sheetBody"></div>
+</div>
+<div id="panel">
+  <div class="panel-head"><button class="back" onclick="backPanel()">‹</button><span class="t" id="panelTitle">Tools</span></div>
+  <div id="panelBody"></div>
+</div>
+<div class="ar" id="arOverlay">
+  <video id="arVideo" playsinline autoplay muted></video>
+  <div class="tint" id="arTint"></div>
+  <div class="oval"></div>
+  <div class="top"><span class="t">LIVE TRY-ON</span><button class="x" onclick="closeAR()">✕</button></div>
+  <div class="ctl">
+    <div class="shade-name" id="arShadeName"></div>
+    <div class="shade-sub" id="arShadeSub"></div>
+    <div class="rail" id="arRail"></div>
+    <div class="slider-row"><span>Sheer</span><input type="range" id="arOpacity" min="10" max="70" value="35" oninput="arSetOpacity(this.value)"><span>Full</span></div>
+    <div class="note">Live shade preview on your camera — final look depends on lighting.</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API='';
+let uid=localStorage.getItem('cmp_uid');if(!uid){uid='u_'+crypto.randomUUID().replace(/-/g,'').slice(0,12);localStorage.setItem('cmp_uid',uid)}
+let stream=null,facingMode='user',capturedImage=null,lighting='natural',selectedCategory='foundation',camOn=false;
+let calibrateMode=false,wbGains=null,lastConfidence=null,lastLightingReport=null,lastPhotosUsed=1,pendingConfirmId=null,burstFrames=[],confirmSaved=false;
+let allShades=[],allBrands=[],allCologne=[],brandLogos={},savedShades=[],lastAnalysis=null,lastMatches=[];
+let eqCategory='foundation',liveTimer=null,arStream=null,arMatches=[],arIndex=0,healthImage=null,panelStack=[],selectedStore='';
+try{savedShades=JSON.parse(localStorage.getItem('cmp_saved')||'[]')}catch(e){savedShades=[]}
+const CATEGORIES=[{id:'foundation',name:'Foundation',ic:'🎨'},{id:'concealer',name:'Concealer',ic:'✨'},{id:'lipstick',name:'Lipstick',ic:'💄'},{id:'blush',name:'Blush',ic:'🌸'},{id:'eyeshadow',name:'Eyeshadow',ic:'👁️'},{id:'highlighter',name:'Highlighter',ic:'💫'},{id:'bronzer',name:'Bronzer',ic:'☀️'},{id:'primer',name:'Primer',ic:'🛡️'},{id:'mascara',name:'Mascara',ic:'👁️'},{id:'eyebrow',name:'Eyebrow',ic:'✏️'},{id:'setting_spray',name:'Setting Spray',ic:'💦'},{id:'nail_polish',name:'Nail Polish',ic:'💅'}];
+const COLOGNE_NOTES={top:['Bergamot','Lemon','Grapefruit','Orange','Pepper','Mint','Basil','Cardamom','Pink Pepper','Mandarin','Pineapple','Blackcurrant'],heart:['Geranium','Lavender','Sage','Rose','Jasmine','Iris','Violet','Cinnamon','Nutmeg','Cypress','Galbanum','Tobacco','Orange Blossom'],base:['Cedar','Sandalwood','Amber','Vanilla','Musk','Patchouli','Vetiver','Ambroxan','Labdanum','Tonka Bean','Oud','Leather','Oakmoss']};
+// ═══ UTILS ═══
+function T(m,d=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d)}
+function labToRgb(lab){const[L,a,b]=lab;const fy=(L+16)/116,fx=fy+a/500,fz=fy-b/200;const invF=t=>t**3>.008856?t**3:(t-16/116)/7.787;const X=invF(fx)*95.047,Y=invF(fy)*100,Z=invF(fz)*108.883;let R=X*3.2406+Y*-1.5372+Z*-.4986,G=X*-.9689+Y*1.8758+Z*.0415,B=X*.0557+Y*-.204+Z*1.057;const gm=c=>c>.0031308?1.055*c**(1/2.4)-.055:12.92*c;R=Math.max(0,Math.min(255,Math.round(gm(R/100)*255)));G=Math.max(0,Math.min(255,Math.round(gm(G/100)*255)));B=Math.max(0,Math.min(255,Math.round(gm(B/100)*255)));return[R,G,B]}
+function rgbStr(r){return`rgb(${r[0]},${r[1]},${r[2]})`}
+function rgbToLab(r,g,b){const ig=c=>c>.04045?((c+.055)/1.055)**2.4:c/12.92;const rL=ig(r/255),gL=ig(g/255),bL=ig(b/255);let X=(rL*.4124+gL*.3576+bL*.1805)/.95047,Y=rL*.2126+gL*.7152+bL*.0722,Z=(rL*.0193+gL*.1192+bL*.9505)/1.08883;const f=t=>t>.008856?Math.cbrt(t):(903.3*t+16)/116;const fx=f(X),fy=f(Y),fz=f(Z);return[Math.round((116*fy-16)*100)/100,Math.round(500*(fx-fy)*100)/100,Math.round(200*(fy-fz)*100)/100]}
+function detectUndertone(lab){const[,a,b]=lab;if(a<1.5&&b<11)return'cool';if(a>6&&b>18)return'warm';if(Math.abs(a)<3&&b>10&&b<18)return'olive';return'neutral'}
+function lightnessLabel(L){if(L>=78)return'Very Light';if(L>=68)return'Light';if(L>=58)return'Medium';if(L>=48)return'Deep';return'Very Deep'}
+function matchScore(de){if(de==null)return null;return Math.max(70,Math.min(99,Math.round(100-de*6)))}
+function initials(name){return name.replace(/[^A-Za-z ]/g,'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'•'}
+function logoHTML(b,lg){const u=brandLogos[b];const cls=lg?'mono mono-lg':'mono';if(u)return`<img class="logo" src="${u}" alt="${b}" onerror="this.outerHTML='<span class=&quot;${cls}&quot;>${initials(b)}</span>'">`;return`<span class="${cls}">${initials(b)}</span>`}
+function logoImgHTML(b){const u=brandLogos[b];if(u)return`<img src="${u}" alt="${b}" onerror="this.outerHTML='<span class=&quot;mono mono-lg&quot;>${initials(b)}</span>'">`;return`<span class="mono mono-lg">${initials(b)}</span>`}
+// ═══ SKIN EXTRACTION (proven v4 math) ═══
+// ═══ LIGHTING FIX v4.1.0 — input reliability (lighting-core.js, inlined) ═══
+// Checks the LIGHT before measuring. Fixes the input, not the matching math.
+//
+// Design notes (honest limits):
+// - Color cast / exposure / uneven light are measured from real pixel stats.
+// - "Angle" is a HEURISTIC (light coming from below + face position), not face
+//   tracking — it warns, it never blocks.
+// - Thresholds were picked from standard photography practice, not from a
+//   lab study. They are documented here so they can be tuned from real tests.
+
+
+
+
+
+// Simple Euclidean distance in Lab (CIE76) — used only for outlier rejection,
+// never for shade matching (matching still uses Delta E 2000 on the worker).
+function de76(l1, l2) {
+  const dL = l1[0] - l2[0], da = l1[1] - l2[1], db = l1[2] - l2[2];
+  return Math.sqrt(dL * dL + da * da + db * db);
+}
+
+const FACE = { x0: 0.15, x1: 0.85, y0: 0.15, y1: 0.85 }; // face box, fractions of frame
+
+// Background = the border ring outside the face box. The light (and the wall
+// it bounces off) tints EVERYTHING — so the background reveals the cast
+// without skin warmth confusing the reading. Skin itself is warm-toned
+// (R >> B), so a raw channel-spread check on the face would flag normal
+// skin as a "cast". We never do that.
+function bgStats(data, w, h) {
+  let n = 0, sR = 0, sG = 0, sB = 0;
+  const step = Math.max(1, Math.floor(w / 60));
+  for (let y = 0; y < h; y += step) {
+    for (let x = 0; x < w; x += step) {
+      const inFaceX = x > w * FACE.x0 && x < w * FACE.x1;
+      const inFaceY = y > h * FACE.y0 && y < h * FACE.y1;
+      if (inFaceX && inFaceY) continue; // border ring only
+      const i = (y * w + x) * 4;
+      sR += data[i]; sG += data[i + 1]; sB += data[i + 2]; n++;
+    }
+  }
+  if (n === 0) return null;
+  return { meanR: sR / n, meanG: sG / n, meanB: sB / n, mean: (sR + sG + sB) / (3 * n) };
+}
+
+function faceStats(data, w, h) {
+  const sx = Math.floor(w * FACE.x0), ex = Math.floor(w * FACE.x1);
+  const sy = Math.floor(h * FACE.y0), ey = Math.floor(h * FACE.y1);
+  const step = Math.max(1, Math.floor((ex - sx) / 60));
+  let n = 0, sR = 0, sG = 0, sB = 0, sLum = 0;
+  let dark = 0, blown = 0;
+  let lLum = 0, lN = 0, rLum = 0, rN = 0;
+  let tLum = 0, tN = 0, bLum = 0, bN = 0;
+  const midX = (sx + ex) / 2;
+  const thirdH = (ey - sy) / 3;
+  for (let y = sy; y < ey; y += step) {
+    for (let x = sx; x < ex; x += step) {
+      const i = (y * w + x) * 4;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      n++; sR += r; sG += g; sB += b; sLum += lum;
+      if (lum < 12 || lum > 250) { if (lum < 12) dark++; else blown++; }
+      if (x < midX) { lLum += lum; lN++; } else { rLum += lum; rN++; }
+      if (y < sy + thirdH) { tLum += lum; tN++; }
+      else if (y >= ey - thirdH) { bLum += lum; bN++; }
+    }
+  }
+  if (n === 0) return null;
+  return {
+    n,
+    meanR: sR / n, meanG: sG / n, meanB: sB / n, meanLum: sLum / n,
+    clippedFrac: (dark + blown) / n,
+    darkFrac: dark / n, blownFrac: blown / n,
+    leftLum: lN ? lLum / lN : 0, rightLum: rN ? rLum / rN : 0,
+    topLum: tN ? tLum / tN : 0, bottomLum: bN ? bLum / bN : 0,
+  };
+}
+
+// ─── 1. LIGHTING CHECK — runs before any measurement ───
+// Returns { score 0..100, block, issues: [{code, severity, message}], metrics }
+function analyzeLighting(data, w, h) {
+  const s = faceStats(data, w, h);
+  const issues = [];
+  if (!s) return { score: 0, block: true, issues: [{ code: 'no-face', severity: 'block', message: 'No face found in the frame — line your face up in the oval.' }], metrics: null };
+  let score = 100;
+
+  // — Color cast: read it off the BACKGROUND, not the face (see bgStats note) —
+  const bg = bgStats(data, w, h);
+  let castType = 'none';
+  let castStrength = 0;
+  if (bg && bg.mean > 25) { // too dark to read the background — skip, don't guess
+    const spread = Math.max(bg.meanR, bg.meanG, bg.meanB) - Math.min(bg.meanR, bg.meanG, bg.meanB);
+    castStrength = spread / bg.mean;
+    if (castStrength > 0.25) {
+      if (bg.meanR - bg.meanB > 20) castType = (bg.meanR - bg.meanG < 15) ? 'yellow' : 'orange';
+      else if (bg.meanB - bg.meanR > 20) castType = 'blue';
+      else if (bg.meanG > bg.meanR && bg.meanG > bg.meanB) castType = 'green';
+      else castType = 'warm';
+    }
+  }
+  const castPenalty = Math.min(35, castStrength * 50);
+  score -= castPenalty;
+  if (castStrength > 0.45) {
+    issues.push({ code: 'cast', severity: 'block', message: `Strong ${castType} tint in the light — the whole photo is colored ${castType}. Move to neutral daylight.` });
+  } else if (castStrength > 0.25) {
+    issues.push({ code: 'cast', severity: 'warn', message: `A ${castType} tint in the light is shifting your skin color. Daylight by a window is best.` });
+  }
+  // Secondary check: the face's own Lab b* — a very high b* means the light
+  // is pushing everything warm even if the background is out of frame.
+  // Warn only, and only at an extreme value real skin rarely reaches.
+  const faceLabB = (() => {
+    const lab = rgbToLab(Math.round(s.meanR), Math.round(s.meanG), Math.round(s.meanB));
+    return lab[2];
+  })();
+  if (faceLabB > 38 && !issues.some((i) => i.code === 'cast')) {
+    score -= 12;
+    issues.push({ code: 'cast', severity: 'warn', message: 'The light looks very warm — your skin is reading yellower than it should. Try daylight.' });
+  }
+
+  // — Exposure —
+  if (s.meanLum < 55) {
+    score -= 30;
+    issues.push({ code: 'dark', severity: 'block', message: 'Too dark — the camera can\'t see your real skin color. Move into brighter light.' });
+  } else if (s.meanLum > 225) {
+    score -= 30;
+    issues.push({ code: 'blown', severity: 'block', message: 'Overexposed — bright light is washing your skin out. Step out of direct sun.' });
+  }
+  if (s.clippedFrac > 0.30) {
+    score -= 15;
+    issues.push({ code: 'clipped', severity: 'block', message: 'Too much of the photo is pure black or pure white — detail is lost. Soften the light.' });
+  } else if (s.clippedFrac > 0.15) {
+    score -= 8;
+    issues.push({ code: 'clipped', severity: 'warn', message: 'Some areas are losing detail to harsh light or shadow.' });
+  }
+
+  // — Uneven light (half the face in shadow) —
+  const unevenDiff = Math.abs(s.leftLum - s.rightLum);
+  if (unevenDiff > 45) {
+    score -= 25;
+    issues.push({ code: 'uneven', severity: 'block', message: 'Half your face is in shadow — turn to face the light so it falls evenly.' });
+  } else if (unevenDiff > 22) {
+    score -= Math.min(25, unevenDiff * 0.55);
+    issues.push({ code: 'uneven', severity: 'warn', message: 'Light is uneven across your face — face the light straight on.' });
+  }
+
+  // — Angle heuristic: light coming from below (chin lit, forehead dark) —
+  // HEURISTIC, not face tracking — warns only, never blocks.
+  const verticalGrad = s.bottomLum - s.topLum;
+  if (verticalGrad > 30) {
+    score -= 15;
+    issues.push({ code: 'angle', severity: 'warn', message: 'Looks like the light is coming from below — hold the phone at eye level, not underneath you.' });
+  }
+
+  const block = issues.some((i) => i.severity === 'block');
+  return {
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    block,
+    issues,
+    metrics: {
+      meanLum: Math.round(s.meanLum * 10) / 10,
+      castType, castStrength: Math.round(castStrength * 100) / 100,
+      unevenDiff: Math.round(unevenDiff * 10) / 10,
+      verticalGrad: Math.round(verticalGrad * 10) / 10,
+      clippedFrac: Math.round(s.clippedFrac * 100) / 100,
+    },
+  };
+}
+
+// ─── 2. WHITE REFERENCE CALIBRATION ───
+// gains from a tapped white patch: [255/r, 255/g, 255/b], clamped to a sane range.
+// Returns null when the tapped patch is not plausibly white.
+function whiteBalanceGains(patchRgb) {
+  const [r, g, b] = patchRgb;
+  const spread = Math.max(r, g, b) - Math.min(r, g, b);
+  // A white card under warm light IS tinted — that is the point. Only reject
+  // patches that are clearly not white: wildly colorful, or too dark.
+  if (spread > 110) return null; // too colorful to be a white card
+  if (r < 90 || g < 90 || b < 90) return null; // too dark to be a white reference
+  if (Math.max(r, g, b) < 180) return null; // not bright enough to trust
+  const clamp = (v) => Math.max(0.7, Math.min(1.45, v));
+  return [clamp(255 / r), clamp(255 / g), clamp(255 / b)];
+}
+
+// Apply gains in place to an ImageData.data array.
+function applyWhiteBalance(data, gains) {
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = Math.max(0, Math.min(255, Math.round(data[i] * gains[0])));
+    data[i + 1] = Math.max(0, Math.min(255, Math.round(data[i + 1] * gains[1])));
+    data[i + 2] = Math.max(0, Math.min(255, Math.round(data[i + 2] * gains[2])));
+  }
+}
+
+// Sample the mean RGB of a square patch around (px, py) in a canvas ImageData.
+function samplePatch(data, w, h, px, py, half = 20) {
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let y = Math.max(0, py - half); y < Math.min(h, py + half); y += 2) {
+    for (let x = Math.max(0, px - half); x < Math.min(w, px + half); x += 2) {
+      const i = (y * w + x) * 4;
+      r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+    }
+  }
+  if (n === 0) return null;
+  return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+}
+
+// ─── 3. SMART SAMPLING ───
+// Forehead / cheeks / jaw sampled separately. Per-pixel outliers (shine, shadow,
+// facial hair) are dropped against each zone's median; a whole zone that
+// disagrees with the others (e.g. one cheek in shadow) is dropped too.
+const SKIN_GATE = (r, g, b) =>
+  r > 95 && g > 40 && b > 20 &&
+  Math.max(r, g, b) - Math.min(r, g, b) > 15 &&
+  Math.abs(r - g) > 15 && r > g && r > b;
+
+function median3(vals) {
+  // vals: array of [L,a,b] — median per channel
+  const s = (i) => [...vals].sort((x, y) => x[i] - y[i])[Math.floor(vals.length / 2)][i];
+  return [s(0), s(1), s(2)];
+}
+
+function extractSkinToneV2(data, w, h) {
+  const sx = Math.floor(w * FACE.x0), ex = Math.floor(w * FACE.x1);
+  const sy = Math.floor(h * FACE.y0), ey = Math.floor(h * FACE.y1);
+  const step = Math.max(1, Math.floor((ex - sx) / 50));
+  const zoneDefs = [
+    { n: 'Forehead', y0: sy, y1: sy + Math.floor((ey - sy) * 0.33) },
+    { n: 'Cheeks', y0: sy + Math.floor((ey - sy) * 0.33), y1: sy + Math.floor((ey - sy) * 0.67) },
+    { n: 'Jaw', y0: sy + Math.floor((ey - sy) * 0.67), y1: ey },
+  ];
+  const zones = {};
+  const skippedZones = [];
+  let totalPixels = 0;
+  for (const z of zoneDefs) {
+    const labs = [];
+    for (let y = z.y0; y < z.y1; y += step) {
+      for (let x = sx; x < ex; x += step) {
+        const i = (y * w + x) * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (SKIN_GATE(r, g, b)) labs.push(rgbToLab(r, g, b));
+      }
+    }
+    if (labs.length < 10) { skippedZones.push(z.n); continue; } // too few skin pixels — likely shadow; excluded, and reported
+    // Drop outlier pixels vs the zone median (shine, shadow, facial hair)
+    const med = median3(labs);
+    const kept = labs.filter((l) => de76(l, med) <= 12);
+    const use = kept.length >= 10 ? kept : labs;
+    const mean = [
+      use.reduce((a, l) => a + l[0], 0) / use.length,
+      use.reduce((a, l) => a + l[1], 0) / use.length,
+      use.reduce((a, l) => a + l[2], 0) / use.length,
+    ].map((v) => Math.round(v * 100) / 100);
+    zones[z.n] = { lab: mean, pixels: use.length, dropped: labs.length - use.length };
+    totalPixels += use.length;
+  }
+  const zoneNames = Object.keys(zones);
+  if (zoneNames.length === 0 || totalPixels === 0) return null;
+  // Drop a whole zone that disagrees with the zone median (shadow on one cheek)
+  const zoneLabs = zoneNames.map((n) => zones[n].lab);
+  const zoneMed = median3(zoneLabs);
+  const keptZones = zoneNames.filter((n) => de76(zones[n].lab, zoneMed) <= 8);
+  const finalZones = keptZones.length > 0 ? keptZones : [zoneNames[0]];
+  const final = [0, 1, 2].map((i) =>
+    Math.round(finalZones.reduce((a, n) => a + zones[n].lab[i], 0) / finalZones.length * 100) / 100
+  );
+  // Spread between kept zones — feeds the confidence score
+  let spread = 0;
+  for (let i = 0; i < finalZones.length; i++) {
+    for (let j = i + 1; j < finalZones.length; j++) {
+      spread = Math.max(spread, de76(zones[finalZones[i]].lab, zones[finalZones[j]].lab));
+    }
+  }
+  return {
+    lab: final,
+    rgb: labToRgb(final),
+    zones,
+    keptZones: finalZones,
+    droppedZones: [...zoneNames.filter((n) => !finalZones.includes(n)), ...skippedZones],
+    zoneSpread: Math.round(spread * 100) / 100,
+    skinPixels: totalPixels,
+  };
+}
+
+// ─── 4. MULTI-PHOTO AVERAGING ───
+function averageLabs(labs) {
+  if (!labs || labs.length === 0) return null;
+  return [0, 1, 2].map((i) =>
+    Math.round(labs.reduce((a, l) => a + l[i], 0) / labs.length * 100) / 100
+  );
+}
+
+// ─── 6. CONFIDENCE SCORE ───
+// Based on lighting quality, zone agreement, and how many photos were combined.
+// 80+ high · 60–79 medium · under 60 low (ask for a retake).
+function computeConfidence({ lightingScore, zoneSpread, photoCount, whiteBalanced }) {
+  let score = lightingScore;
+  if (zoneSpread > 4) score -= Math.min(20, (zoneSpread - 4) * 4);
+  if (photoCount === 1) score -= 12;
+  else if (photoCount === 2) score -= 5;
+  if (whiteBalanced) score += 5;
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  const band = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low';
+  const label =
+    band === 'high' ? 'Good light — this match should be right.'
+    : band === 'medium' ? 'Decent light — check the matches below before saving.'
+    : 'Low confidence — retake in better light for a match you can trust.';
+  return { score, band, label };
+}
+
+// Back-compat wrapper for the old call site (live camera sampling)
+function extractSkinTone(canvas){const ctx=canvas.getContext("2d");const d=ctx.getImageData(0,0,canvas.width,canvas.height);return extractSkinToneV2(d.data,canvas.width,canvas.height)}
+function extractSkinHealth(canvas){const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;const d=ctx.getImageData(0,0,w,h).data;const sx=Math.floor(w*.1),ex=Math.floor(w*.9),sy=Math.floor(h*.1),ey=Math.floor(h*.9);const step=Math.max(1,Math.floor(w/120));let allR=0,allG=0,allB=0,cnt=0,redCnt=0,satSum=0,tzB=0,tzC=0,ckB=0,ckC=0;const pxs=[];const zones={tZone:{r:0,g:0,b:0,c:0,red:0,dark:0},cheeks:{r:0,g:0,b:0,c:0,red:0,dark:0},forehead:{r:0,g:0,b:0,c:0,red:0,dark:0},jaw:{r:0,g:0,b:0,c:0,red:0,dark:0}};
+for(let y=sy;y<ey;y+=step){for(let x=sx;x<ex;x+=step){const i=(y*w+x)*4;const r=d[i],g=d[i+1],b=d[i+2];if(r>90&&g>35&&b>15&&Math.abs(r-g)>12&&r>g&&r>b){const br=(r+g+b)/3;const mx=Math.max(r,g,b),mn=Math.min(r,g,b);const sat=mx>0?(mx-mn)/mx:0;allR+=r;allG+=g;allB+=b;satSum+=sat;cnt++;pxs.push({r,g,b,br,x,y,sat});if(r>g+25&&r>b+20)redCnt++;let zn=null;if(x>w*.25&&x<w*.75&&y>h*.1&&y<h*.5)zn='tZone';else if((x<w*.35||x>w*.65)&&y>h*.3&&y<h*.7)zn='cheeks';else if(y<h*.3)zn='forehead';else if(y>h*.6)zn='jaw';if(zn){zones[zn].r+=r;zones[zn].g+=g;zones[zn].b+=b;zones[zn].c++;if(r>g+25&&r>b+20)zones[zn].red++;if(br<(allR+allG+allB)/(3*Math.max(cnt,1))*.8)zones[zn].dark++}if(x>w*.25&&x<w*.75&&y>h*.1&&y<h*.5){tzB+=br;tzC++}if((x<w*.35||x>w*.65)&&y>h*.3&&y<h*.7){ckB+=br;ckC++}}}}if(cnt===0)return null;const avgBr=(allR+allG+allB)/(3*cnt);const avgSat=satSum/cnt;const dark=pxs.filter(p=>p.br<avgBr*.8).length;const acne=pxs.filter(p=>p.br<avgBr*.75&&p.r>p.g+15).length;let tx=0,txC=0;for(let i=0;i<pxs.length-3;i+=3){const p=pxs[i];const ns=pxs.slice(i+1,i+4);if(ns.length>0){const la=ns.reduce((a,n)=>a+n.br,0)/ns.length;tx+=Math.abs(p.br-la);txC++}}const texture=txC>0?(tx/txC)/40:0;const tzAvg=tzC>0?tzB/tzC:avgBr;const ckAvg=ckC>0?ckB/ckC:avgBr;const zoneResults={};for(const[zn,z]of Object.entries(zones)){if(z.c>0){const zBr=(z.r+z.g+z.b)/(3*z.c);const redness=z.red/z.c;const darkness=z.dark/z.c;zoneResults[zn]={brightness:Math.round(zBr/255*100),redness:Math.round(redness*100),darkness:Math.round(darkness*100),severity:redness>0.3||darkness>0.2?'alert':redness>0.15||darkness>0.1?'mild':'ok'}}}return{redness:Math.min(1,redCnt/cnt),darkness:Math.min(1,dark/cnt),brightness:Math.round(avgBr/255*100),saturation:avgSat,texture:Math.min(1,texture),oiliness:Math.max(0,Math.min(1,(tzAvg-ckAvg)/25)),dryness:Math.max(0,Math.min(1,(1-avgSat)*.5+texture*.5)),dullness:Math.max(0,Math.min(1,1-avgSat)),acneScore:Math.min(1,acne/cnt*4),skinPixelsFound:cnt,zones:zoneResults}}
+// ═══ NAV — sheet & panel over the camera ═══
+function openSheet(title){document.getElementById('sheetTitle').textContent=title;document.getElementById('sheet').classList.add('open')}
+function closeSheet(){document.getElementById('sheet').classList.remove('open')}
+function openPanel(name){panelStack.push(name);const p=document.getElementById('panel');p.classList.add('open');if(name==='brands'){document.getElementById('panelTitle').textContent='Brands';renderBrands()}else if(name==='matches'){document.getElementById('panelTitle').textContent='Matches';renderMatches()}else if(name==='tools'){document.getElementById('panelTitle').textContent='Tools';renderTools()}else if(name==='profile'){document.getElementById('panelTitle').textContent='My Profile';renderProfile()}else if(name==='health'){document.getElementById('panelTitle').textContent='Skin Health';renderHealth()}else if(name==='cologne'){document.getElementById('panelTitle').textContent='Fragrance Finder';renderCologne()}else if(name==='stores'){document.getElementById('panelTitle').textContent='Stores Near Me';renderStores()}else if(name==='browse'){document.getElementById('panelTitle').textContent='Browse All Shades';renderBrowse()}document.getElementById('panelBody').scrollTop=0}
+function closePanel(){panelStack=[];document.getElementById('panel').classList.remove('open');stopPanelStream()}
+function backPanel(){panelStack.pop();if(panelStack.length===0){closePanel();return}const prev=panelStack[panelStack.length-1];panelStack.pop();openPanel(prev)}
+function stopPanelStream(){/* health camera uses main stream; stop if panel had one */}
+// ═══ SWIPE — Snapchat gestures on the camera ═══
+let tsX=0,tsY=0,tsT=0;
+function bindGestures(){const st=document.getElementById('stage');st.addEventListener('touchstart',e=>{const t=e.changedTouches[0];tsX=t.clientX;tsY=t.clientY;tsT=Date.now()},{passive:true});st.addEventListener('touchend',e=>{const t=e.changedTouches[0];const dx=t.clientX-tsX,dy=t.clientY-tsY;if(Date.now()-tsT>600)return;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.4){if(dx<0)openPanel('brands');else openPanel('matches')}else if(dy<-70&&Math.abs(dy)>Math.abs(dx)*1.4){openPanel('tools')}},{passive:true});
+const sh=document.getElementById('sheet');let shY=0;sh.addEventListener('touchstart',e=>{shY=e.changedTouches[0].clientY},{passive:true});sh.addEventListener('touchend',e=>{const dy=e.changedTouches[0].clientY-shY;if(dy>60)closeSheet()},{passive:true})}
+// ═══ CAMERA — auto-starts, it's the home screen ═══
+function buildCatTabs(){document.getElementById('catTabs').innerHTML=CATEGORIES.map(c=>`<div class="cat-btn ${c.id==='foundation'?'active':''}" data-cat="${c.id}" onclick="selectCat(this)"><span>${c.ic}</span>${c.name}</div>`).join('')}
+function selectCat(el){document.querySelectorAll('#catTabs .cat-btn').forEach(x=>x.classList.remove('active'));el.classList.add('active');selectedCategory=el.dataset.cat}
+function selectLighting(c){document.querySelectorAll('#lightChips .chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');lighting=c.dataset.lighting}
+function stopStream(){if(liveTimer){clearInterval(liveTimer);liveTimer=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}camOn=false;document.getElementById('liveChip').classList.remove('on')}
+async function startCamera(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode},audio:false});camOn=true;const st=document.getElementById('stage');const ph=document.getElementById('stagePh');if(ph)ph.remove();const oldImg=document.getElementById('stageImg');if(oldImg)oldImg.remove();let v=document.getElementById('camVideo');if(!v){v=document.createElement('video');v.id='camVideo';v.setAttribute('playsinline','true');v.autoplay=true;v.muted=true;st.prepend(v)}v.srcObject=stream;v.addEventListener('loadedmetadata',()=>v.play());document.getElementById('faceOval').style.display='block';document.getElementById('flipBtn').style.visibility='visible';document.getElementById('capLabel').textContent='Line your face up in the oval, then tap gold';document.getElementById('liveChip').classList.add('on');liveTimer=setInterval(liveSample,900)}catch(err){camOn=false;const ph=document.getElementById('stagePh');if(ph){ph.innerHTML=`<div style="font-size:44px">📷</div><div class="big">Camera is off</div><div class="small">Tap the gold button to start it, or use the photo button</div>`}document.getElementById('capLabel').textContent='Tap gold to open camera, or 🖼️ to upload'}}
+function liveSample(){const v=document.getElementById('camVideo');if(!v||v.readyState<2)return;const c=document.createElement('canvas');const s=160;c.width=s;c.height=Math.round(s*v.videoHeight/v.videoWidth);const ctx=c.getContext('2d');ctx.drawImage(v,0,0,c.width,c.height);const skin=extractSkinTone(c);const dot=document.getElementById('liveDot'),txt=document.getElementById('liveTxt');if(!skin||!skin.lab){if(txt)txt.textContent='Move into better light';return}if(dot)dot.style.background=rgbStr(skin.rgb);if(txt)txt.textContent=detectUndertone(skin.lab).toUpperCase()+' · '+lightnessLabel(skin.lab[0])}
+function flipCamera(){if(!camOn){startCamera();return}facingMode=facingMode==='user'?'environment':'user';stopStream();startCamera()}
+function captureFlow(){if(!camOn){startCamera();return}capturePhoto()}
+// ═══ LIGHTING FIX: burst capture — 3 frames, hold still ═══
+// Tap gold once: the camera grabs 3 frames ~450ms apart. Each frame gets its
+// own lighting check + smart sampling; blocked frames are dropped and the
+// rest are averaged. One shaky or badly-lit frame can't wreck the match.
+async function capturePhoto(){const v=document.getElementById('camVideo');if(!v)return;burstFrames=[];wbGains=null;calibrateMode=false;const _wb=document.getElementById('wbChip');if(_wb)_wb.classList.remove('active');
+  document.getElementById('capLabel').textContent='Hold still — taking 3 photos…';
+  for(let i=0;i<3;i++){await new Promise(r=>setTimeout(r,450));
+    const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;const ctx=c.getContext('2d');
+    if(facingMode==='user'){ctx.scale(-1,1);ctx.drawImage(v,-c.width,0)}else{ctx.drawImage(v,0,0)}
+    burstFrames.push(c);
+    document.getElementById('capLabel').textContent=`Photo ${i+1} of 3 — hold still…`;}
+  capturedImage=burstFrames[1].toDataURL('image/jpeg',0.88);
+  stopStream();v.remove();const st=document.getElementById('stage');let img=document.getElementById('stageImg');
+  if(!img){img=document.createElement('img');img.id='stageImg';st.prepend(img)}img.src=capturedImage;
+  document.getElementById('faceOval').style.display='none';document.getElementById('flipBtn').style.visibility='hidden';
+  if(calibrateMode){showCalibratePrompt()}else{document.getElementById('capLabel').textContent='Got it — checking the light…';analyzePhotos()}}
+function onUpload(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{capturedImage=ev.target.result;stopStream();const oldV=document.getElementById('camVideo');if(oldV)oldV.remove();const st=document.getElementById('stage');const ph=document.getElementById('stagePh');if(ph)ph.remove();let img=document.getElementById('stageImg');if(!img){img=document.createElement('img');img.id='stageImg';st.prepend(img)}img.src=capturedImage;document.getElementById('faceOval').style.display='none';
+  // Single uploaded photo: same pipeline, 1 photo — confidence reflects that.
+  canvasFromDataURL(capturedImage).then(c=>{burstFrames=[c];if(calibrateMode){showCalibratePrompt()}else{document.getElementById('capLabel').textContent='Photo loaded — checking the light…';analyzePhotos()}})};r.readAsDataURL(f)}
+function canvasFromDataURL(src){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const md=1024;let iw=img.width,ih=img.height;if(Math.max(iw,ih)>md){const s=md/Math.max(iw,ih);iw=Math.round(iw*s);ih=Math.round(ih*s)}c.width=iw;c.height=ih;c.getContext('2d').drawImage(img,0,0,iw,ih);res(c)};img.onerror=rej;img.src=src})}
+// ═══ WHITE CARD CALIBRATION — tap the white paper in the still ═══
+function toggleCalibrate(){calibrateMode=!calibrateMode;const chip=document.getElementById('wbChip');if(chip)chip.classList.toggle('active',calibrateMode);T(calibrateMode?'White-card mode on — hold a plain white paper next to your face, then tap the paper in the photo.':'White-card mode off.',4000)}
+function setCalibrate(on){calibrateMode=on;const chip=document.getElementById('wbChip');if(chip)chip.classList.toggle('active',on)}
+function showCalibratePrompt(){openSheet('White card');document.getElementById('sheetBody').innerHTML=`<div class="empty"><p>📄 Tap the white paper</p><p class="hint">Tap the plain white paper or card in the photo. We use it to correct the white balance before measuring your skin. Tap anywhere else to skip.</p></div><button class="btn btn-p btn-blk" onclick="skipCalibrate()">Skip — analyze without it</button>`;const img=document.getElementById('stageImg');if(img){img.style.cursor='crosshair';img.onclick=onCalibrateTap}document.getElementById('capLabel').textContent='Tap the white card in the photo'}
+async function onCalibrateTap(ev){const img=document.getElementById('stageImg');if(!img)return;const frame=burstFrames[Math.min(1,burstFrames.length-1)];const rect=img.getBoundingClientRect();const px=Math.round((ev.clientX-rect.left)/rect.width*frame.width);const py=Math.round((ev.clientY-rect.top)/rect.height*frame.height);const ctx=frame.getContext('2d');const d=ctx.getImageData(0,0,frame.width,frame.height);const patch=samplePatch(d.data,frame.width,frame.height,px,py,24);if(!patch){T('Could not read that spot. Tap the white card again, or skip.',4000);return}const gains=whiteBalanceGains(patch);if(!gains){T('That doesn\'t look like a white card — tap a plain white paper, or skip.',5000);return}wbGains=gains;img.onclick=null;img.style.cursor='';closeSheet();T('White balance corrected ✓',3000);document.getElementById('capLabel').textContent='White balance corrected — analyzing…';analyzePhotos()}
+function skipCalibrate(){const img=document.getElementById('stageImg');if(img){img.onclick=null;img.style.cursor=''}wbGains=null;closeSheet();document.getElementById('capLabel').textContent='Got it — checking the light…';analyzePhotos()}
+// ═══ ANALYZE — lighting gate → smart sampling → average → confidence ═══
+async function analyzePhotos(){
+  const frames=burstFrames.length?burstFrames:[];
+  if(frames.length===0){T('Take or upload a photo first.');return}
+  openSheet('Your match');document.getElementById('sheetBody').innerHTML=`<div class="spin"><div class="r"></div><p>Checking the light…</p><p class="sub">Good light makes a good match</p></div>`;
+  // White-balance correction first (if the shopper calibrated)
+  if(wbGains){for(const c of frames){const ctx=c.getContext('2d');const d=ctx.getImageData(0,0,c.width,c.height);applyWhiteBalance(d.data,wbGains);ctx.putImageData(d,0,0)}}
+  const kept=[];let worstReport=null;
+  for(const c of frames){
+    const small=document.createElement('canvas');const s=320;small.width=s;small.height=Math.round(s*c.height/c.width);
+    const sctx=small.getContext('2d');sctx.drawImage(c,0,0,small.width,small.height);
+    const img=sctx.getImageData(0,0,small.width,small.height);
+    const report=analyzeLighting(img.data,small.width,small.height);
+    if(report.block){if(!worstReport||report.score<worstReport.score)worstReport=report;continue}
+    const skin=extractSkinToneV2(img.data,small.width,small.height);
+    if(!skin)continue;
+    kept.push({skin,report});
+  }
+  if(kept.length===0){showLightingGate(worstReport);return}
+  const avgLab=averageLabs(kept.map(k=>k.skin.lab));
+  const zoneSpread=Math.max(...kept.map(k=>k.skin.zoneSpread));
+  const lightScore=Math.round(kept.reduce((a,k)=>a+k.report.score,0)/kept.length);
+  const warnIssues=[...new Set(kept.flatMap(k=>k.report.issues.filter(i=>i.severity==='warn').map(i=>i.code)))];
+  const conf=computeConfidence({lightingScore:lightScore,zoneSpread,photoCount:kept.length,whiteBalanced:!!wbGains});
+  lastConfidence=conf;lastPhotosUsed=kept.length;pendingConfirmId=null;confirmSaved=false;
+  lastLightingReport={score:lightScore,issues:warnIssues};
+  document.getElementById('sheetBody').innerHTML=`<div class="spin"><div class="r"></div><p>Matching your skin tone…</p><p class="sub">${kept.length} photo${kept.length>1?'s':''} combined · confidence ${conf.score}%</p></div>`;
+  try{
+    const resp=await fetch(`${API}/api/analyze`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lab:avgLab,lighting,prefs:{category:selectedCategory},user_id:uid,confidence:conf.score,photos_used:kept.length,white_balanced:!!wbGains,lighting_report:{score:lightScore,issues:warnIssues}})});
+    const data=await resp.json();
+    if(data.error){closeSheet();T('Analysis failed: '+data.error,4000);return}
+    lastAnalysis=data;lastMatches=data.matches||[];
+    renderResults(data,conf);
+    document.getElementById('capLabel').textContent='Tap your photo to see your match · Tap gold to retake';const _si=document.getElementById('stageImg');if(_si){_si.style.cursor='pointer';_si.onclick=()=>openSheet('Your match')}
+  }catch(err){closeSheet();T('Network error. Check your connection and try again.',4000)}
+}
+// Lighting gate: the photo is blocked — say exactly what's wrong, in plain words.
+function showLightingGate(report){
+  closeSheet();
+  const list=report?report.issues.map(i=>`<div class="issue"><div class="txt"><div class="t">${i.message}</div></div></div>`).join(''):'';
+  openSheet('Light check');
+  document.getElementById('sheetBody').innerHTML=`
+    <div class="empty"><p>⚠️ The light isn't right for a match yet.</p><p class="hint">Lighting changes what the camera sees. If the photo is off, the match will be off too — even when the math is right. Fix the light, then retake.</p></div>
+    <div class="issues">${list}</div>
+    <p style="font-size:14px;font-weight:700;text-align:center;margin:6px 0 16px">Move by a window, face the light, hold the phone at eye level.</p>
+    <button class="btn btn-p btn-blk" onclick="retake()">🔄 Retake photo</button>
+    <button class="btn btn-g btn-blk" style="margin-top:10px" onclick="setCalibrate(true);closeSheet();retake()">📄 Retake with white-card calibration</button>`;
+  document.getElementById('capLabel').textContent='Light check failed — retake in better light';
+}
+function retake(){capturedImage=null;burstFrames=[];wbGains=null;calibrateMode=false;const _wb=document.getElementById('wbChip');if(_wb)_wb.classList.remove('active');lastConfidence=null;pendingConfirmId=null;closeSheet();const img=document.getElementById('stageImg');if(img){img.onclick=null;img.style.cursor='';img.remove()}document.getElementById('capLabel').textContent='Tap the gold button to start your camera';startCamera()}
+function cardHTML(m,isDupe){const rgb=m.rgb||labToRgb(m.lab);const isSaved=savedShades.includes(m.id);const sc=matchScore(m.delta_e);const catLabel=m.category?(m.category.charAt(0).toUpperCase()+m.category.slice(1)).replace('_',' '):'Foundation';const dupeBadge=isDupe&&m.savings?`<span class="dupe-badge">Save ${m.savings}%</span>`:'';const scoreHTML=sc!=null?`<span class="match">${sc}% match</span>`:'';return`<div class="card" data-shade-id="${m.id}"><button class="bm ${isSaved?'saved':''}" onclick="toggleBookmark('${m.id}',this)">${isSaved?'★':'☆'}</button><div class="tr"><div class="sw" style="background:${rgbStr(rgb)}"></div><div class="ci"><div class="br">${logoHTML(m.brand)}<span>${m.brand}</span></div><div class="sh">${m.shade} — ${m.undertone||'neutral'}${dupeBadge}</div><div class="pr">${m.product||catLabel}</div></div></div><div class="pills"><span class="pill">${m.coverage||'medium'}</span><span class="pill">${m.formula||'liquid'}</span><span class="pill">${m.finish||'natural'}</span><span class="pill">${catLabel}</span></div><div class="br-row"><span class="price">$${(m.price||0).toFixed(2)}</span><div style="display:flex;align-items:center;gap:10px">${scoreHTML}<a class="shop" href="${m.affiliate_url||m.url}" target="_blank" rel="noopener">Shop ↗</a></div></div></div>`}
+function confirmCardHTML(m){const rgb=m.rgb||labToRgb(m.lab);const sc=matchScore(m.delta_e);const catLabel=m.category?(m.category.charAt(0).toUpperCase()+m.category.slice(1)).replace('_',' '):'Foundation';const scoreHTML=sc!=null?`<span class="match">${sc}% match</span>`:'';return`<div class="card" data-shade-id="${m.id}"><div class="tr"><div class="sw" style="background:${rgbStr(rgb)}"></div><div class="ci"><div class="br">${logoHTML(m.brand)}<span>${m.brand}</span></div><div class="sh">${m.shade} — ${m.undertone||'neutral'}</div><div class="pr">${m.product||catLabel}</div></div></div><div class="pills"><span class="pill">${m.coverage||'medium'}</span><span class="pill">${m.formula||'liquid'}</span><span class="pill">${m.finish||'natural'}</span><span class="pill">${catLabel}</span></div><div class="br-row"><span class="price">$${(m.price||0).toFixed(2)}</span><div style="display:flex;align-items:center;gap:10px">${scoreHTML}</div></div></div>`}
+function renderResults(data,conf){const w=document.getElementById('sheetBody');const a=data.analysis;const rgb=a.rgb;const catName=CATEGORIES.find(c=>c.id===selectedCategory)?.name||'Foundation';let h=`<div class="rbar"><div class="dot" style="background:${rgbStr(rgb)}"></div><div class="info"><div class="lbl">Your skin tone</div><div class="val">${a.undertone.charAt(0).toUpperCase()+a.undertone.slice(1)} · ${a.lightness}</div><div class="tags"><span class="tag">🌿 ${a.season}</span><span class="tag">💡 ${a.lighting_used.replace('_',' ')}</span></div></div></div>`;
+// ── CONFIDENCE (feature 6) + CONFIRM STEP (feature 5) ──
+// STMP only ever stores what the shopper confirmed. Nothing saves here.
+const c=conf||{score:null,band:'medium',label:''};
+if(c.score!=null){
+  const col=c.band==='high'?'#4ade80':c.band==='medium'?'#facc15':'#f87171';
+  h+=`<div class="rbar"><div class="dot" style="background:${col};width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#0a0a0f;font-weight:900;font-size:15px">${c.score}</div><div class="info"><div class="lbl">Match confidence — ${c.band}</div><div class="val" style="font-size:15px">${c.label}</div><div class="tags"><span class="tag">${lastPhotosUsed} photo${lastPhotosUsed>1?'s':''} combined</span>${wbGains?'<span class="tag">📄 white-card calibrated</span>':''}<span class="tag">Lighting affects every match — good light makes a better one</span></div></div></div>`;
+}
+const top3=(data.matches||[]).slice(0,3);
+if(top3.length>0){
+  h+=`<div class="section-h">Does this look right? <span class="count">pick one</span></div><p style="font-size:13px;color:var(--dim);margin:-6px 0 12px">Tap the match that looks most like you. We only save your skin tone after you confirm — never from the raw photo alone.</p><div class="grid" id="confirmGrid">`;
+  for(const m of top3){h+=`<div class="confirm-card" data-shade-id="${m.id}" onclick="selectConfirm('${m.id}',this)" style="cursor:pointer">${confirmCardHTML(m)}</div>`}
+  h+='</div>';
+  if(c.band==='low'){h+=`<p style="font-size:13px;color:#f87171;font-weight:700;margin:12px 0">Low confidence — retaking in better light is the better move. You can still save if you checked it yourself.</p>`}
+  h+=`<button class="btn btn-p btn-blk" id="confirmBtn" style="margin-top:12px" disabled onclick="confirmMatch()">${c.band==='low'?'Save anyway — I checked':'✓ Save this as my skin tone'}</button>`;
+}
+h+=`<button class="btn btn-p btn-blk" style="margin:12px 0 4px" onclick="openAR()">👁️ Try It On — Live Camera</button>`;
+h+=`<div class="section-h">${catName} matches <span class="count">${data.matches.length}</span></div><div class="grid">`;for(const m of data.matches)h+=cardHTML(m,false);h+='</div>';
+if(data.dupes&&data.dupes.length>0){h+=`<div class="dupe-section"><h3>💰 Cheaper dupes</h3><p style="font-size:12.5px;color:var(--dim);margin-bottom:12px">Same shade family, lower price — matched from the real database.</p><div class="grid">`;for(const d of data.dupes)h+=cardHTML(d,true);h+='</div></div>'}
+h+=`<button class="btn btn-g btn-blk" style="margin-top:18px" onclick="shareResult()">📤 Share my match</button><button class="btn btn-g btn-blk" style="margin-top:10px" onclick="retake()">🔄 Retake photo</button>`;
+w.innerHTML=h;applyBookmarkState()}
+// ═══ CONFIRM STEP — save to STMP only after the shopper picks a match ═══
+function selectConfirm(id,el){if(confirmSaved)return;pendingConfirmId=id;document.querySelectorAll('.confirm-card').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');const b=document.getElementById('confirmBtn');if(b){b.disabled=false;b.scrollIntoView({behavior:'smooth',block:'nearest'})}}
+async function confirmMatch(){if(!pendingConfirmId||!lastAnalysis)return;const btn=document.getElementById('confirmBtn');if(btn){btn.disabled=true;btn.textContent='Saving…'}
+  const a=lastAnalysis.analysis;
+  try{const r=await fetch(`${API}/api/profile/${uid}/confirm-scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lab:a.lab,undertone:a.undertone,lighting,confidence:lastConfidence?lastConfidence.score:null,white_balanced:!!wbGains,photos:lastPhotosUsed,lighting_issues:lastLightingReport?lastLightingReport.issues:[],shade_id:pendingConfirmId})});
+  const d=await r.json();if(d.error){T('Could not save: '+d.error,4000);if(btn){btn.disabled=false;btn.textContent='✓ Save this as my skin tone'}return}
+  confirmSaved=true;T('Saved to your profile ✓ — your skin tone memory is set.');if(btn){btn.textContent='✓ Saved to your profile';btn.style.opacity='.7';if(!document.getElementById('viewProfileBtn')){const vb=document.createElement('button');vb.id='viewProfileBtn';vb.className='btn btn-g btn-blk';vb.style.marginTop='10px';vb.textContent='👤 View my profile →';vb.onclick=()=>{closeSheet();openPanel('profile')};btn.insertAdjacentElement('afterend',vb)}}
+  }catch(err){T('Network error — try saving again.',4000);if(btn){btn.disabled=false;btn.textContent='✓ Save this as my skin tone'}}}
+// ═══ AR TRY-ON ═══
+async function openAR(){if(!lastMatches||lastMatches.length===0){T('Scan first to get your matches.');return}arMatches=lastMatches.slice(0,6);arIndex=0;const ov=document.getElementById('arOverlay');ov.classList.add('open');try{arStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});const v=document.getElementById('arVideo');v.srcObject=arStream;v.addEventListener('loadedmetadata',()=>v.play())}catch(err){T('Camera not available for try-on.',4000);ov.classList.remove('open');return}renderARRail();arApply(0)}
+function renderARRail(){document.getElementById('arRail').innerHTML=arMatches.map((m,i)=>{const rgb=m.rgb||labToRgb(m.lab);return`<div class="sw ${i===arIndex?'on':''}" style="background:${rgbStr(rgb)}" onclick="arApply(${i})"></div>`}).join('')}
+function arApply(i){arIndex=i;const m=arMatches[i];const rgb=m.rgb||labToRgb(m.lab);document.getElementById('arShadeName').textContent=`${m.brand} — ${m.shade}`;document.getElementById('arShadeSub').textContent=`${m.product||''} · $${(m.price||0).toFixed(2)}${matchScore(m.delta_e)?' · '+matchScore(m.delta_e)+'% match':''}`;arSetOpacity(document.getElementById('arOpacity').value);document.querySelectorAll('#arRail .sw').forEach((el,j)=>el.classList.toggle('on',j===i))}
+function arSetOpacity(v){const m=arMatches[arIndex];if(!m)return;const rgb=m.rgb||labToRgb(m.lab);const o=v/100;document.getElementById('arTint').style.background=`radial-gradient(ellipse at center, rgba(${rgb[0]},${rgb[1]},${rgb[2]},${o}) 0%, rgba(${rgb[0]},${rgb[1]},${rgb[2]},${o*0.55}) 55%, rgba(${rgb[0]},${rgb[1]},${rgb[2]},0) 78%)`;document.getElementById('arTint').style.mixBlendMode='multiply'}
+function closeAR(){if(arStream){arStream.getTracks().forEach(t=>t.stop());arStream=null}document.getElementById('arOverlay').classList.remove('open')}
+// ═══ MATCHES PANEL — 3-tier equivalents ═══
+function renderMatches(){const b=document.getElementById('panelBody');let h=`<h2>Matches</h2><p class="sub">Can't find your brand? Find the exact same shade in another brand — or the closest one — or one you might love even more.</p>`;
+h+=`<div class="section-h" style="margin-top:0">🎯 Find your shade anywhere</div>`;
+h+=`<div style="font-size:12px;color:var(--dim);font-weight:700;margin:2px 0 8px">Shopping at a specific store? Filter matches to it:</div><div class="chip-row" id="storeChips"><button class="chip active" data-store="" onclick="selectStore(this)">All stores</button></div>`;
+h+=`<div class="cat-row" id="eqCatTabs">${CATEGORIES.map(c=>`<div class="cat-btn ${c.id==='foundation'?'active':''}" data-cat="${c.id}" onclick="selectEqCat(this)"><span>${c.ic}</span>${c.name}</div>`).join('')}</div>`;
+h+=`<select class="sel" id="eqBrandSelect" onchange="populateEqShades()"><option value="">Choose a brand you already wear…</option></select>`;
+h+=`<select class="sel" id="eqShadeSelect" style="display:none" onchange="findEquivalents()"><option value="">Choose your shade…</option></select>`;
+h+=`<div id="eqLoading" style="display:none"><div class="spin"><div class="r"></div><p>Finding your matches…</p></div></div><div id="eqResults"></div>`;
+if(lastMatches.length>0){h+=`<div class="section-h">Your last scan</div><div class="grid">`;for(const m of lastMatches.slice(0,4))h+=cardHTML(m,false);h+='</div>'}
+if(savedShades.length>0){h+=`<div class="saved-h">⭐ Saved shades</div><div class="saved-scroll">`;for(const id of savedShades){const sh=allShades.find(s=>s.id===id);if(sh){const rgb=sh.rgb||labToRgb(sh.lab);h+=`<div class="saved-i"><div class="sw" style="background:${rgbStr(rgb)}"></div><div class="nm">${sh.brand.split(' ')[0]} ${sh.shade}</div></div>`}}h+='</div>'}
+b.innerHTML=h;loadEqBrands();loadStores();applyBookmarkState()}
+function selectEqCat(el){document.querySelectorAll('#eqCatTabs .cat-btn').forEach(x=>x.classList.remove('active'));el.classList.add('active');eqCategory=el.dataset.cat;loadEqBrands()}
+async function loadEqBrands(){if(allShades.length===0)await loadShades();const sel=document.getElementById('eqBrandSelect');if(!sel)return;sel.innerHTML='<option value="">Choose a brand you already wear…</option>';const cats=allShades.filter(s=>s.category===eqCategory);const brands=[...new Set(cats.map(s=>s.brand))].sort();for(const b of brands){const count=cats.filter(s=>s.brand===b).length;const o=document.createElement('option');o.value=b;o.textContent=`${b} (${count} shades)`;sel.appendChild(o)}const ss=document.getElementById('eqShadeSelect');if(ss)ss.style.display='none';const rs=document.getElementById('eqResults');if(rs)rs.innerHTML=''}
+async function loadStores(){try{const r=await fetch(`${API}/api/stores`);const d=await r.json();const c=document.getElementById('storeChips');if(!c||!d.stores)return;const order=['Walmart','Target','Ulta Beauty','Sephora','CVS','Walgreens','Amazon',"Kohl's",'Macy\'s','Nordstrom','TJ Maxx'];const sorted=[...d.stores].sort((a,b)=>(order.indexOf(a.name)+1||99)-(order.indexOf(b.name)+1||99));for(const s of sorted){const btn=document.createElement('button');btn.className='chip'+(selectedStore===s.name?' active':'');btn.dataset.store=s.name;btn.textContent=s.name;btn.onclick=()=>selectStore(btn);c.appendChild(btn)}if(selectedStore){const all=c.querySelector('[data-store=""]');if(all)all.classList.remove('active')}}catch(e){}}
+function selectStore(el){document.querySelectorAll('#storeChips .chip').forEach(x=>x.classList.remove('active'));el.classList.add('active');selectedStore=el.dataset.store||'';const ss=document.getElementById('eqShadeSelect');if(ss&&ss.value)findEquivalents()}
+function populateEqShades(){const b=document.getElementById('eqBrandSelect').value;const ss=document.getElementById('eqShadeSelect');ss.innerHTML='<option value="">Choose your shade…</option>';if(!b){ss.style.display='none';return}const shades=allShades.filter(s=>s.brand===b&&s.category===eqCategory);for(const s of shades){const o=document.createElement('option');o.value=s.id;o.textContent=`${s.shade} — ${s.undertone} · ${s.coverage||'medium'}`;ss.appendChild(o)}ss.style.display='block'}
+// ── 3 tiers: Exact / Closest / You might love this more ──
+function brandTierOf(brand){if(!window._btCache){window._btCache={};const agg={};for(const s of allShades){if(!agg[s.brand])agg[s.brand]={sum:0,n:0};agg[s.brand].sum+=s.price||0;agg[s.brand].n++}for(const[b,a]of Object.entries(agg)){const avg=a.n?a.sum/a.n:0;window._btCache[b]=avg<20?'drugstore':avg<45?'prestige':'luxury'}}return window._btCache[brand]||'prestige'}
+function tierEquivalents(ref,eqs){
+  const userUt=lastAnalysis?lastAnalysis.analysis.undertone:null;
+  const seen=new Set();const uniq=eqs.filter(m=>{if(seen.has(m.id))return false;seen.add(m.id);return true});
+  const t1=uniq.filter(m=>m.delta_e!=null&&m.delta_e<1.0).slice(0,4);
+  const t2=uniq.filter(m=>m.delta_e!=null&&m.delta_e>=1.0&&m.delta_e<3.0).slice(0,3);
+  const rank={drugstore:0,prestige:1,luxury:2};const refRank=rank[brandTierOf(ref.brand)]??1;
+  const t3=[];const inT=(m,a)=>a.some(x=>x.id===m.id);
+  const push=(list,whyFn)=>{for(const m of list){if(t3.length>=3)break;if(inT(m,t1)||inT(m,t2)||inT(m,t3))continue;t3.push({...m,tier3_why:whyFn(m)})}};
+  if(userUt&&ref.undertone&&ref.undertone!==userUt)push(uniq.filter(m=>m.delta_e!=null&&m.delta_e<5.0&&m.undertone===userUt),m=>`Your undertone (${userUt}) — same color, a better fit for your skin.`);
+  push(uniq.filter(m=>m.delta_e!=null&&m.delta_e<5.0&&rank[brandTierOf(m.brand)]>refRank),m=>`Step up — ${m.brand} is ${brandTierOf(m.brand)}, a tier above ${ref.brand}.`);
+  push(uniq.filter(m=>m.delta_e!=null&&m.delta_e<5.0&&m.price<ref.price),()=>'Same color family — and an easier price than your shade.');
+  push(uniq.filter(m=>m.delta_e!=null&&m.delta_e<5.0&&m.finish&&ref.finish&&m.finish!==ref.finish),m=>`Same color — try a ${m.finish} finish instead of ${ref.finish}.`);
+  return{t1,t2,t3,t3why:t3.length?'Not just a dupe — a better fit for your skin, a better brand, or both.':''};
+}
+function tierBlock(title,icon,sub,list){if(!list||list.length===0)return'';let h=`<div class="section-h" style="margin-top:22px">${icon} ${title} <span class="count">${list.length}</span></div><p style="font-size:13px;color:var(--dim);margin:-6px 0 12px">${sub}</p><div class="grid">`;for(const m of list)h+=cardHTML(m,false);h+='</div>';return h}
+function tierBlockBetter(list){if(!list||list.length===0)return'';let h=`<div class="section-h" style="margin-top:22px">💛 You might love this more <span class="count">${list.length}</span></div><p style="font-size:13px;color:var(--dim);margin:-6px 0 12px">Not just a dupe — a better fit for your skin, a better brand, or both.</p><div class="grid">`;for(const m of list){h+=`<div>${m.tier3_why?`<div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:6px">✦ ${m.tier3_why}</div>`:''}${cardHTML(m,false)}</div>`}h+='</div>';return h}
+async function findEquivalents(){const id=document.getElementById('eqShadeSelect').value;if(!id)return;const ld=document.getElementById('eqLoading'),rs=document.getElementById('eqResults');ld.style.display='block';rs.innerHTML='';document.getElementById('eqShadeSelect').disabled=true;try{
+  const userUt=lastAnalysis?lastAnalysis.analysis.undertone:null;
+  const r=await fetch(`${API}/api/equivalent`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shade_id:id,prefs:{},store:selectedStore||null,user_undertone:userUt})});const d=await r.json();
+  if(d.error){rs.innerHTML=`<div class="empty"><p>${d.error}</p></div>`;return}
+  let tiers;
+  if(d.tiers){tiers={t1:d.tiers.exact||[],t2:d.tiers.closest||[],t3:d.tiers.better||[],t3why:d.tiers.better_why||''}}
+  else{let all=[...(d.equivalents||[])];try{const dr=await fetch(`${API}/api/dupes/${id}`);const dd=await dr.json();if(dd.dupes)all=all.concat(dd.dupes)}catch(e){}all.sort((a,b)=>(a.delta_e??99)-(b.delta_e??99));tiers=tierEquivalents(d.reference,all)}
+  const storeTag=d.store?` · at ${d.store}`:'';
+  let h=`<div class="rbar"><div class="dot" style="background:${rgbStr(d.reference.rgb)}"></div><div class="info"><div class="lbl">Your shade</div><div class="val">${d.reference.brand} ${d.reference.shade}</div><div class="tags"><span class="tag">${d.reference.undertone}</span><span class="tag">$${d.reference.price.toFixed(2)}</span></div></div></div>`;
+  if(d.store)h+=`<p style="font-size:13px;color:var(--gold);font-weight:700;margin:12px 0 2px">📍 Showing matches available at ${d.store}</p>`;
+  h+=tierBlock('Exact match','✅','Same shade, different brand.'+storeTag,tiers.t1);
+  if(tiers.t1.length===0)h+=`<p style="font-size:13px;color:var(--dim);margin-top:14px">No exact match${d.store?` at ${d.store}`:''} — here's the closest instead.</p>`;
+  h+=tierBlock('Closest','🎯','The nearest color match to your shade.'+storeTag,tiers.t2);
+  h+=tierBlockBetter(tiers.t3);
+  if(tiers.t1.length===0&&tiers.t2.length===0&&tiers.t3.length===0)h+=`<div class="empty"><p>No close matches found${d.store?` at ${d.store}`:''} for this shade.</p><p class="hint">Try All stores, or a different shade or category.</p></div>`;
+  rs.innerHTML=h;applyBookmarkState();
+}catch(err){rs.innerHTML='<div class="empty"><p>Network error. Try again.</p></div>'}finally{ld.style.display='none';document.getElementById('eqShadeSelect').disabled=false}}
+// ═══ BRANDS PANEL ═══
+function renderBrands(){const b=document.getElementById('panelBody');b.innerHTML=`<h2>Brands</h2><p class="sub">Every brand in the database, with real shades and real prices. Tap a brand to see its shades.</p><input class="search" id="brandSearch" placeholder="🔍 Search brands…" oninput="filterBrands(this.value)"><div class="brand-grid" id="brandGrid"><div class="spin"><div class="r"></div><p>Loading brands…</p></div></div><div id="brandShades"></div>`;loadBrandGrid()}
+async function loadBrandGrid(){if(allBrands.length===0)await loadShades();const g=document.getElementById('brandGrid');if(!g)return;if(allBrands.length===0){g.innerHTML='<div class="empty"><p>Could not load brands.</p></div>';return}g.innerHTML=allBrands.map(b=>`<div class="brand-card" data-name="${b.name.toLowerCase()}" onclick="openBrand('${b.name.replace(/'/g,"\\'")}')"><div class="bl">${logoImgHTML(b.name)}</div><div class="bn">${b.name}</div><div class="bc">${b.shade_count} shades · $${b.price_min}–$${b.price_max}</div></div>`).join('')}
+function filterBrands(q){q=q.toLowerCase();document.querySelectorAll('.brand-card').forEach(c=>{c.style.display=c.dataset.name.includes(q)?'':'none'})}
+async function openBrand(name){const el=document.getElementById('brandShades');if(!el)return;el.innerHTML='<div class="spin"><div class="r"></div><p>Loading shades…</p></div>';el.scrollIntoView({behavior:'smooth'});if(allShades.length===0)await loadShades();const shades=allShades.filter(s=>s.brand===name);if(shades.length===0){el.innerHTML='<div class="empty"><p>No shades found for this brand.</p></div>';return}let h=`<div class="section-h">${logoHTML(name)} ${name} <span class="count">${shades.length} shades</span></div><div class="browse-g">`;for(const s of shades.slice(0,60)){const rgb=s.rgb||labToRgb(s.lab);h+=`<div class="browse-c" onclick="window.open('${s.affiliate_url||s.url}','_blank')"><div class="sw" style="background:${rgbStr(rgb)}"></div><div class="br">${s.shade}</div><div class="sh">${(s.category||'').replace('_',' ')} · ${s.undertone}</div><div class="price">$${s.price.toFixed(2)}</div></div>`}h+='</div>';if(shades.length>60)h+=`<p style="text-align:center;color:var(--dim);font-size:12.5px;margin-top:12px">Showing 60 of ${shades.length} shades</p>`;el.innerHTML=h}
+// ═══ TOOLS PANEL ═══
+function renderTools(){const b=document.getElementById('panelBody');b.innerHTML=`<h2>Tools</h2><p class="sub">The full power of ColorMatch — one tap away. Lighting affects every match: the camera checks the light before measuring, and tells you when to retake. Matches are never perfect — good light makes them much better.</p>
+<div class="tool-card" onclick="openPanel('health')"><div class="ti">🔬</div><div class="tt"><div class="tn">Skin Health</div><div class="td">Scan for redness, dark spots, acne, oiliness — and get the exact products to fix them.</div></div><div class="ar">›</div></div>
+<div class="tool-card" onclick="openPanel('cologne')"><div class="ti">🎯</div><div class="tt"><div class="tn">Fragrance Finder</div><div class="td">Pick the scent notes you love. Find your fragrance — and the cheaper dupe.</div></div><div class="ar">›</div></div>
+<div class="tool-card" onclick="openPanel('stores')"><div class="ti">📍</div><div class="tt"><div class="tn">Stores Near Me</div><div class="td">Find beauty stores around you and the brands they carry.</div></div><div class="ar">›</div></div>
+<div class="tool-card" onclick="openPanel('browse')"><div class="ti">🔍</div><div class="tt"><div class="tn">Browse All Shades</div><div class="td">The full database — filter by category, brand, undertone, coverage, finish.</div></div><div class="ar">›</div></div>
+<div class="tool-card" onclick="openPanel('profile')"><div class="ti">👤</div><div class="tt"><div class="tn">My Profile</div><div class="td">Your skin tone memory — scans, confidence, saved shades, seasonal shifts.</div></div><div class="ar">›</div></div>`}
+// ═══ PROFILE PANEL ═══
+async function renderProfile(){const b=document.getElementById('panelBody');b.innerHTML=`<h2>My profile</h2><p class="sub">Your skin tone memory — every scan makes your matches sharper.</p><div id="profileContent"><div class="spin"><div class="r"></div><p>Loading profile…</p></div></div>`;const c=document.getElementById('profileContent');try{const r=await fetch(`${API}/api/profile/${uid}`);const d=await r.json();if(d.error||d.total_scans===0){c.innerHTML='<div class="empty"><p>No scans yet.</p><p class="hint">Go back to the camera and take your first photo to start your profile.</p></div>';return}let h=`<div class="stats"><div class="stat"><div class="n">${d.total_scans}</div><div class="l">Total scans</div></div><div class="stat"><div class="n">${Math.round(d.confidence*100)}%</div><div class="l">Confidence</div></div><div class="stat"><div class="n">${d.days_since_last??'—'}</div><div class="l">Days since</div></div><div class="stat"><div class="n">${d.saved_shades?d.saved_shades.length:0}</div><div class="l">Saved</div></div></div>`;if(d.current_lab){h+=`<div class="rbar"><div class="dot" style="background:${rgbStr(d.current_rgb)}"></div><div class="info"><div class="lbl">Current skin tone</div><div class="val">${d.current_undertone.toUpperCase()}</div><div class="tags"><span class="tag">${lightnessLabel(d.current_lab[0])}</span></div></div></div>`}if(d.saved_shades&&d.saved_shades.length>0){h+='<div class="saved-h">⭐ Saved shades</div><div class="saved-scroll">';for(const ss of d.saved_shades){const sh=allShades.find(s=>s.id===ss.shade_id);if(sh){const rgb=sh.rgb||labToRgb(sh.lab);h+=`<div class="saved-i"><div class="sw" style="background:${rgbStr(rgb)}"></div><div class="nm">${sh.brand.split(' ')[0]} ${sh.shade}</div></div>`}}h+='</div>'}try{const sr=await fetch(`${API}/api/profile/${uid}/seasonal`);const sd=await sr.json();if(sd.predictions){h+='<div class="saved-h">📅 How your tone shifts by season</div><div class="s-grid">';for(const[s,p]of Object.entries(sd.predictions)){if(p.error||!p.predicted_rgb)continue;h+=`<div class="s-card"><div class="nm">${s}</div><div class="sw" style="background:${rgbStr(p.predicted_rgb)}"></div><div class="ut">${p.predicted_undertone}</div></div>`}h+='</div>'}}catch(e){}c.innerHTML=h}catch(err){c.innerHTML='<div class="empty"><p>Could not load profile.</p></div>'}}
+// ═══ HEALTH TOOL (own camera stream inside the panel) ═══
+let healthStream=null;
+function stopPanelStream(){if(healthStream){healthStream.getTracks().forEach(t=>t.stop());healthStream=null}}
+function renderHealth(){healthImage=null;const b=document.getElementById('panelBody');b.innerHTML=`<h2>Skin Health</h2><p class="sub">Take a close-up selfie. We check for redness, dark spots, acne, oiliness and more — then show the exact products for each issue.</p>
+<div id="healthStage" style="position:relative;border-radius:18px;overflow:hidden;background:#000;border:1.5px solid var(--border2);aspect-ratio:3/2.4;max-height:380px"><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--dim)"><div style="font-size:36px">🔬</div><div style="font-size:14px;font-weight:700;color:var(--text);margin-top:10px">Close-up selfie goes here</div><div style="font-size:12px;color:var(--mute);margin-top:4px">Good light = better results</div></div></div>
+<div id="healthBtns" style="display:flex;gap:10px;justify-content:center;margin:16px 0"><button class="btn btn-p" onclick="startHealthCamera()">📷 Use Camera</button><button class="btn btn-g" onclick="document.getElementById('healthUpload').click()">🖼️ Upload</button><input type="file" id="healthUpload" accept="image/*" style="display:none" onchange="onHealthUpload(event)"></div>
+<div id="healthLoading" style="display:none"><div class="spin"><div class="r"></div><p>Analyzing skin health…</p></div></div>
+<div id="healthResults" style="display:none"></div>`}
+async function startHealthCamera(){try{healthStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});const st=document.getElementById('healthStage');st.innerHTML=`<video id="healthVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover"></video>`;const v=document.getElementById('healthVideo');v.srcObject=healthStream;v.addEventListener('loadedmetadata',()=>v.play());document.getElementById('healthBtns').innerHTML=`<button class="btn btn-p" onclick="captureHealth()">● Capture</button><button class="btn btn-g" onclick="stopPanelStream();renderHealth()">✕ Cancel</button>`}catch(err){T('Camera not available. Upload a photo instead.',4000)}}
+
+function captureHealth(){const v=document.getElementById('healthVideo');if(!v){startHealthCamera();return}const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;const ctx=c.getContext('2d');ctx.scale(-1,1);ctx.drawImage(v,-c.width,0);healthImage=c.toDataURL('image/jpeg',0.88);stopPanelStream();document.getElementById('healthStage').innerHTML=`<img src="${healthImage}" alt="Your selfie" style="width:100%;height:100%;object-fit:cover">`;analyzeHealth()}
+function onHealthUpload(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{healthImage=ev.target.result;stopPanelStream();document.getElementById('healthStage').innerHTML=`<img src="${healthImage}" alt="Uploaded" style="width:100%;height:100%;object-fit:cover">`;analyzeHealth()};r.readAsDataURL(f)}
+async function analyzeHealth(){if(!healthImage)return;document.getElementById('healthLoading').style.display='block';document.getElementById('healthResults').style.display='none';const img=new Image();img.onload=async()=>{const canvas=document.createElement('canvas');const md=800;let iw=img.width,ih=img.height;if(Math.max(iw,ih)>md){const s=md/Math.max(iw,ih);iw=Math.round(iw*s);ih=Math.round(ih*s)}canvas.width=iw;canvas.height=ih;canvas.getContext('2d').drawImage(img,0,0,iw,ih);const skinData=extractSkinHealth(canvas);if(!skinData){document.getElementById('healthLoading').style.display='none';T('Could not analyze. Try a clearer photo with better light.',5000);return}try{const resp=await fetch(`${API}/api/skin-health`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({skinData})});const data=await resp.json();if(data.error){T('Analysis failed: '+data.error,4000);return}renderHealthResults(data,skinData)}catch(err){T('Network error.',4000)}finally{document.getElementById('healthLoading').style.display='none'}};img.src=healthImage}
+function renderHealthResults(data,raw){const s=document.getElementById('healthResults');const score=data.health_score||85;const scoreColor=score>=70?'#4ade80':score>=50?'#facc15':'#f87171';const circ=2*Math.PI*56;const off=circ-(score/100)*circ;let zoneHTML='';if(raw.zones){const zn={tZone:'T-Zone',cheeks:'Cheeks',forehead:'Forehead',jaw:'Jaw'};zoneHTML='<div class="zone-map">';for(const[k,z]of Object.entries(raw.zones)){const cls=z.severity==='alert'?'alert':z.severity==='mild'?'':'ok';zoneHTML+=`<div class="zone ${cls}"><div class="zn">${zn[k]||k}</div><div class="zv">Redness: ${z.redness}%</div><div class="zv">Dark spots: ${z.darkness}%</div></div>`}zoneHTML+='</div>'}
+let h=`<div style="text-align:center;padding:26px 0 6px"><div class="health-ring"><svg width="128" height="128"><circle class="bg" cx="64" cy="64" r="56"/><circle class="fg" cx="64" cy="64" r="56" stroke="${scoreColor}" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/></svg><div class="num" style="color:${scoreColor}">${score}</div></div><div style="font-size:13px;color:var(--dim);font-weight:600">Skin Health Score</div></div>`;
+h+=`<div style="text-align:center;font-size:13px;color:var(--dim);margin-bottom:16px;font-weight:600">Skin type: <b style="color:var(--gold);text-transform:capitalize">${data.skin_type}</b> · ${data.total_issues} issue${data.total_issues!==1?'s':''} found</div>`;
+if(zoneHTML)h+=`<div class="section-h" style="font-size:14px">Face zones</div>${zoneHTML}`;
+if(data.issues&&data.issues.length>0){h+='<div class="section-h" style="font-size:14px;margin-top:16px">What we found</div><div class="issues">';for(const i of data.issues){h+=`<div class="issue" style="color:${i.severity>=4?'#f87171':i.severity>=3?'#fb923c':i.severity>=2?'#facc15':'#4ade80'}"><div class="sev-dot" style="background:currentColor"></div><div class="txt"><div class="t">${i.label}</div><div class="d">Severity ${i.severity} of 5</div></div></div>`}h+='</div>'}else{h+='<div class="empty" style="padding:24px"><p>✅ No major issues found — your skin looks healthy.</p></div>'}
+if(data.recommendations&&data.recommendations.length>0){h+=`<div class="section-h" style="margin-top:20px">Products for you <span class="count">${data.recommendations.length}</span></div><div class="grid">`;for(const r of data.recommendations){const concerns=(r.concerns||[]).map(c=>`<span class="pill">${c.replace('-',' ')}</span>`).join('');const ings=(r.key_ingredients||[]).join(' · ');h+=`<div class="card" data-shade-id="${r.id||''}">${r.id?'<button class="bm '+(savedShades.includes(r.id)?'saved':'')+'" onclick="toggleBookmark(\''+r.id+'\',this)">'+(savedShades.includes(r.id)?'★':'☆')+'</button>':''}<div class="tr"><div class="ci"><div class="br">${logoHTML(r.brand)}<span>${r.brand}</span></div><div class="sh">${r.product}</div><div class="pr">${ings}</div></div></div><div class="pills">${concerns}</div><div class="br-row"><span class="price">$${(r.price||0).toFixed(2)}</span><a class="shop" href="${r.affiliate_url||r.url}" target="_blank">Shop ↗</a></div></div>`}h+='</div>'}
+const tips={oily:[{t:'Use a foaming cleanser twice daily',d:'Look for salicylic acid or niacinamide to control oil.'},{t:'Don\'t skip moisturizer',d:'Use a lightweight gel — oily skin still needs hydration.'}],dry:[{t:'Use cream cleansers only',d:'Avoid foaming cleansers that strip your skin barrier.'},{t:'Layer hyaluronic acid serum',d:'Apply to damp skin, then seal with a rich moisturizer.'}],combination:[{t:'Zone-based skincare',d:'Lighter products on your T-zone, richer ones on cheeks.'}],sensitive:[{t:'Patch test everything',d:'Try new products behind your ear for 3 days first.'},{t:'Avoid fragrance',d:'Fragrance is the #1 irritant for sensitive skin.'}],normal:[{t:'Keep your routine',d:'Cleanse, moisturize, SPF 30+ daily. Consistency wins.'}]};const tt=tips[data.skin_type]||tips.normal;h+='<div class="section-h" style="margin-top:20px">Tips for '+data.skin_type+' skin</div>';for(const tip of tt)h+=`<div class="tip-card"><div class="th">${tip.t}</div><div class="td">${tip.d}</div></div>`;
+s.innerHTML=h;s.style.display='block';const _hb=document.getElementById('healthBtns');if(_hb)_hb.innerHTML='<button class="btn btn-p" onclick="renderHealth()">🔄 Retake</button><button class="btn btn-g" onclick="document.getElementById(\'healthUpload\').click()">📁 Upload</button><input type="file" id="healthUpload" accept="image/*" style="display:none" onchange="onHealthUpload(event)">';}
+// ═══ COLOGNE TOOL ═══
+function renderCologne(){const b=document.getElementById('panelBody');b.innerHTML=`<h2>Fragrance Finder</h2><p class="sub">Pick the scent notes you love — we find your fragrance, plus the cheaper dupe.</p>
+<div class="note-grid"><div class="note-section"><h4>🌸 Top notes</h4><div id="topNotes"></div></div><div class="note-section"><h4>💜 Heart notes</h4><div id="heartNotes"></div></div><div class="note-section"><h4>🌲 Base notes</h4><div id="baseNotes"></div></div></div>
+<button class="btn btn-p btn-blk" onclick="matchCologne()">✨ Find my fragrances</button>
+<div id="cologneLoading" style="display:none"><div class="spin"><div class="r"></div><p>Matching fragrances…</p></div></div>
+<div id="cologneResults"></div>`;initNoteChips()}
+function initNoteChips(){for(const[type,notes]of Object.entries(COLOGNE_NOTES)){const el=document.getElementById(type+'Notes');if(!el)return;el.innerHTML=[...new Set(notes)].map(n=>`<span class="note-chip" data-note="${n}" onclick="this.classList.toggle('active')">${n}</span>`).join('')}}
+async function matchCologne(){const notes=[];document.querySelectorAll('.note-chip.active').forEach(c=>notes.push(c.dataset.note));if(notes.length===0){T('Pick at least one scent note.',3000);return}document.getElementById('cologneLoading').style.display='block';document.getElementById('cologneResults').style.display='none';try{const r=await fetch(`${API}/api/cologne/match`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes,max_results:12})});const d=await r.json();if(d.error){T(d.error,4000);return}renderCologneResults(d.matches)}catch(err){T('Network error.',4000)}finally{document.getElementById('cologneLoading').style.display='none'}}
+function renderCologneResults(matches){const s=document.getElementById('cologneResults');if(!matches||matches.length===0){s.innerHTML='<div class="empty"><p>No fragrances match those notes.</p><p class="hint">Try different notes.</p></div>';s.style.display='block';return}let h='<div class="section-h">Your fragrance matches</div>';for(const m of matches){const sim=Math.round((m.similarity||0)*100);h+=`<div class="cologne-card"><div class="top">${logoHTML(m.brand)}<div><div class="nm">${m.brand} ${m.product||''}</div><div class="brand">$${m.price||0} · ${m.size||'100ml'}</div></div><div style="margin-left:auto"><span class="sim">${sim}% match</span></div></div><div class="notes"><b>Top:</b> ${(m.top||[]).join(', ')}<br><b>Heart:</b> ${(m.heart||[]).join(', ')}<br><b>Base:</b> ${(m.base||[]).join(', ')}</div><div class="meta"><span>Longevity: ${'⭐'.repeat(m.longevity||3)}</span><span>Sillage: ${'⭐'.repeat(m.sillage||3)}</span><span style="text-transform:capitalize">${m.occasion||'daily'}</span>${(m.season||[]).map(x=>`<span style="text-transform:capitalize">${x}</span>`).join('')}</div>${m.dupe_for?'<div style="margin-top:10px"><span class="dupe-badge">Dupe for a luxury scent</span></div>':''}<div style="margin-top:12px"><a class="shop" href="${m.url}" target="_blank">Shop ↗</a> <button class="btn btn-g btn-sm" style="margin-left:8px" onclick="findCologneDupes('${m.id}')">💰 Find dupes</button></div></div>`}s.innerHTML=h;s.style.display='block'}
+async function findCologneDupes(id){T('Finding affordable dupes…',2000);try{const r=await fetch(`${API}/api/cologne/dupes/${id}`);const d=await r.json();if(d.error){T(d.error,4000);return}const s=document.getElementById('cologneResults');let h='<div class="dupe-section"><h3>💰 Affordable dupes</h3>';if(d.original)h+=`<div style="font-size:13px;color:var(--dim);margin-bottom:14px">Original: ${d.original.brand} ${d.original.product} — $${d.original.price}</div>`;if(d.direct_dupes&&d.direct_dupes.length>0){h+='<p style="font-size:13px;font-weight:700;margin-bottom:10px">Known dupes:</p>';for(const dd of d.direct_dupes)h+=cologneCardHTML(dd)}if(d.similar_dupes&&d.similar_dupes.length>0){h+='<p style="font-size:13px;font-weight:700;margin:14px 0 10px">Similar &amp; cheaper:</p>';for(const sd of d.similar_dupes)h+=cologneCardHTML(sd)}if((!d.direct_dupes||d.direct_dupes.length===0)&&(!d.similar_dupes||d.similar_dupes.length===0))h+='<div class="empty"><p>No dupes found for this fragrance.</p></div>';h+='</div>';s.querySelectorAll('.dupe-section').forEach(x=>x.remove());s.innerHTML+=h;s.style.display='block'}catch(err){T('Network error.',4000)}}
+function cologneCardHTML(c){const allNotes=[...(c.top||[]),...(c.heart||[]),...(c.base||[])];const sim=c.similarity?`<span class="sim">${Math.round(c.similarity*100)}% similar</span>`:'';const savings=c.savings?`<span class="savings">Save ${c.savings}%</span>`:'';return`<div class="cologne-card"><div class="top">${logoHTML(c.brand)}<div><div class="nm">${c.brand} ${c.product||''}</div><div class="brand">$${c.price||0} ${savings}</div></div><div style="margin-left:auto">${sim}</div></div><div class="notes"><b>Notes:</b> ${allNotes.join(', ')}</div><div style="margin-top:10px"><a class="shop" href="${c.url}" target="_blank">Shop ↗</a></div></div>`}
+// ═══ STORES TOOL ═══
+function renderStores(){const b=document.getElementById('panelBody');b.innerHTML=`<h2>Stores near me</h2><p class="sub">Share your location to see beauty stores nearby and the brands they carry.</p>
+<button class="btn btn-p btn-blk" onclick="findStores()">📍 Find stores near me</button>
+<div id="storeLoading" style="display:none"><div class="spin"><div class="r"></div><p>Finding nearby stores…</p></div></div>
+<div id="storeResults"></div>`}
+async function findStores(){document.getElementById('storeLoading').style.display='block';document.getElementById('storeResults').style.display='none';if(!navigator.geolocation){T('Location not available on this device.',4000);document.getElementById('storeLoading').style.display='none';return}navigator.geolocation.getCurrentPosition(async pos=>{const lat=pos.coords.latitude,lng=pos.coords.longitude;try{const r=await fetch(`${API}/api/stores/nearby?lat=${lat}&lng=${lng}&radius=50`);const d=await r.json();if(d.error){T(d.error,4000);return}renderStoresList(d.stores)}catch(err){T('Network error finding stores.',4000)}finally{document.getElementById('storeLoading').style.display='none'}},err=>{let msg='Could not get your location. ';if(err.code===1)msg+='Please allow location access.';else if(err.code===2)msg+='Location unavailable.';else msg+='Try again.';T(msg,5000);document.getElementById('storeLoading').style.display='none'},{timeout:10000})}
+function renderStoresList(stores){const s=document.getElementById('storeResults');if(!stores||stores.length===0){s.innerHTML='<div class="empty"><p>No stores found nearby.</p><p class="hint">Turn location on and try again — or pick a store in the Matches panel.</p></div>';s.style.display='block';return}let h='<div class="section-h">Stores near you</div>';for(const st of stores){const cats=(st.categories||[]).slice(0,10).map(c=>`<span class="cat-tag">${c.replace('_',' ')}</span>`).join('');const brands=(st.carries_brands||[]).slice(0,10).join(', ');const more=st.carries_brands&&st.carries_brands.length>10?` +${st.carries_brands.length-10} more`:'';const dist=st.distance?`${st.distance} km away`:st.use_locator?'Use store locator':'Online';const searchUrl=st.api_search_url?st.api_search_url+encodeURIComponent('foundation makeup'):'';h+=`<div class="store-card"><div class="top"><div style="font-size:24px;width:48px;height:48px;border-radius:12px;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center">🏪</div><div><div class="nm">${st.name}</div><div class="dist">${dist} · ${st.price_range||''}</div></div></div><div class="brands">${brands}${more}</div><div class="cats">${cats}</div>${searchUrl?`<a class="search-link" href="${searchUrl}" target="_blank">Search at ${st.name} ↗</a>`:''}${st.store_locator_url?`<a class="search-link" href="${st.store_locator_url}" target="_blank" style="margin-left:8px">Find nearest store ↗</a>`:''}</div>`}s.innerHTML=h;s.style.display='block'}
+// ═══ BROWSE TOOL ═══
+function renderBrowse(){const b=document.getElementById('panelBody');b.innerHTML=`<h2>Browse all shades</h2><p class="sub">Every shade in the database. Filter it down to exactly what you want.</p>
+<div class="frow"><select id="filterCategory" onchange="loadBrowseResults()"><option value="">All categories</option></select><select id="filterBrand" onchange="loadBrowseResults()"><option value="">All brands</option></select></div>
+<div class="frow"><select id="filterUndertone" onchange="loadBrowseResults()"><option value="">All undertones</option><option value="warm">Warm</option><option value="neutral">Neutral</option><option value="cool">Cool</option><option value="olive">Olive</option></select><select id="filterCoverage" onchange="loadBrowseResults()"><option value="">All coverage</option><option value="sheer">Sheer</option><option value="light">Light</option><option value="medium">Medium</option><option value="full">Full</option></select><select id="filterFinish" onchange="loadBrowseResults()"><option value="">All finishes</option><option value="matte">Matte</option><option value="satin">Satin</option><option value="dewy">Dewy</option><option value="natural">Natural</option><option value="shimmer">Shimmer</option><option value="metallic">Metallic</option></select></div>
+<div id="browseResults"></div>`;initBrowseFilters();loadBrowseResults()}
+function initBrowseFilters(){const fc=document.getElementById('filterCategory');if(fc&&fc.children.length<=1){for(const cat of CATEGORIES){const o=document.createElement('option');o.value=cat.id;o.textContent=cat.name;fc.appendChild(o)}const fb=document.getElementById('filterBrand');if(allBrands.length>0){for(const b of allBrands){const o=document.createElement('option');o.value=b.name;o.textContent=`${b.name} (${b.shade_count})`;fb.appendChild(o)}}}}
+async function loadBrowseResults(){if(allShades.length===0)await loadShades();const cat=document.getElementById('filterCategory')?.value,brand=document.getElementById('filterBrand')?.value,ut=document.getElementById('filterUndertone')?.value,cov=document.getElementById('filterCoverage')?.value,fin=document.getElementById('filterFinish')?.value;let r=allShades;if(cat)r=r.filter(s=>s.category===cat);if(brand)r=r.filter(s=>s.brand===brand);if(ut)r=r.filter(s=>s.undertone===ut);if(cov)r=r.filter(s=>s.coverage===cov);if(fin)r=r.filter(s=>s.finish===fin);const c=document.getElementById('browseResults');if(!c)return;if(r.length===0){c.innerHTML='<div class="empty"><p>No shades match these filters.</p></div>';return}let h=`<div class="section-h" style="font-size:14px">Results <span class="count">${r.length>60?'60 of '+r.length:r.length}</span></div><div class="browse-g">`;for(const s of r.slice(0,60)){const rgb=s.rgb||labToRgb(s.lab);h+=`<div class="browse-c" onclick="window.open('${s.affiliate_url||s.url}','_blank')"><div class="sw" style="background:${rgbStr(rgb)}"></div><div class="br">${s.brand}</div><div class="sh">${s.shade}</div><div class="price">$${s.price.toFixed(2)}</div></div>`}h+='</div>';c.innerHTML=h}
+// ═══ BOOKMARKS / SHARE ═══
+function toggleBookmark(id,btn){const i=savedShades.indexOf(id);if(i>=0){savedShades.splice(i,1);btn.textContent='☆';btn.classList.remove('saved');T('Removed from saved')}else{savedShades.push(id);btn.textContent='★';btn.classList.add('saved');T('Saved ⭐');fetch(`${API}/api/profile/${uid}/save-shade`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shade_id:id})}).catch(()=>{})}localStorage.setItem('cmp_saved',JSON.stringify(savedShades))}
+function applyBookmarkState(){document.querySelectorAll('.bm').forEach(b=>{const c=b.closest('.card');if(c){const id=c.dataset.shadeId;if(savedShades.includes(id)){b.textContent='★';b.classList.add('saved')}else{b.textContent='☆';b.classList.remove('saved')}}})}
+function shareResult(){if(!lastAnalysis)return;const a=lastAnalysis.analysis;const tm=lastAnalysis.matches[0];const sr=a.rgb,mr=tm?tm.rgb:null;const c=document.createElement('canvas');c.width=600;c.height=400;const ctx=c.getContext('2d');const grad=ctx.createLinearGradient(0,0,600,400);grad.addColorStop(0,'#0a0a0f');grad.addColorStop(1,'#16161e');ctx.fillStyle=grad;ctx.fillRect(0,0,600,400);ctx.fillStyle='#e8b04e';ctx.font='bold 26px sans-serif';ctx.textAlign='center';ctx.fillText('ColorMatch Pro',300,50);ctx.fillStyle='#f5f5f7';ctx.font='16px sans-serif';ctx.fillText(`${a.undertone.toUpperCase()} · ${a.lightness}`,300,80);ctx.beginPath();ctx.arc(200,200,70,0,Math.PI*2);ctx.fillStyle=`rgb(${sr[0]},${sr[1]},${sr[2]})`;ctx.fill();ctx.strokeStyle='rgba(255,255,255,.1)';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#9a9aa8';ctx.font='13px sans-serif';ctx.fillText('Your Skin Tone',200,300);if(mr){ctx.beginPath();ctx.arc(400,200,70,0,Math.PI*2);ctx.fillStyle=`rgb(${mr[0]},${mr[1]},${mr[2]})`;ctx.fill();ctx.stroke();ctx.fillStyle='#9a9aa8';ctx.fillText('Best Match',400,300);ctx.fillStyle='#f5f5f7';ctx.font='bold 16px sans-serif';ctx.fillText(tm.brand,400,325);ctx.font='13px sans-serif';ctx.fillText(tm.shade+' — $'+tm.price.toFixed(2),400,348)}ctx.fillStyle='#5a5a68';ctx.font='11px sans-serif';ctx.fillText('ColorMatch Pro',300,385);c.toBlob(async b=>{if(!b)return;const f=new File([b],'my-color-match.png',{type:'image/png'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'My color match'})}catch(e){if(e.name!=='AbortError')downloadCard(b)}}else downloadCard(b)},'image/png')}
+function downloadCard(b){const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='my-color-match.png';a.click();URL.revokeObjectURL(u);T('Match card downloaded!')}
+// ═══ DATA LOADING ═══
+async function loadShades(){try{const r=await fetch(`${API}/api/shades`);const d=await r.json();if(d.shades)allShades=d.shades}catch(e){}try{const r=await fetch(`${API}/api/brands`);const d=await r.json();if(d.brands)allBrands=d.brands}catch(e){}try{const r=await fetch(`${API}/api/brands/logos`);const d=await r.json();if(d.logos)brandLogos=d.logos}catch(e){}}
+async function loadHealth(){try{const r=await fetch(`${API}/api/health`);const d=await r.json();if(d.status==='ok'){const el=document.getElementById('dbStats');if(el)el.textContent=`${d.total_shades.toLocaleString()} shades · ${d.brand_count} brands`}}catch(e){const el=document.getElementById('dbStats');if(el)el.textContent='ColorMatch Pro'}}
+// ═══ INIT — camera first, everything else hides behind it ═══
+(async()=>{buildCatTabs();bindGestures();startCamera();await loadShades();await loadHealth()})();
+</script>
+<footer style="text-align:center;padding:24px 16px 32px;font-size:13px;color:#9a9aa8"><a href="/privacy-policy.html" style="color:#e8b04e">Privacy Policy</a></footer>
+</body>
+</html>

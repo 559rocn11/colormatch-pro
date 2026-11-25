@@ -1,0 +1,15 @@
+name = "colormatch-pro"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# Static assets (the frontend HTML)
+[assets]
+directory = "./public"
+
+# KV namespace for STMP profile storage
+# Create one with: npx wrangler kv namespace create STMP_KV
+# Then paste the ID below
+[[kv_namespaces]]
+binding = "STMP_KV"
+id = "51d1caca9e8d42a6963bd7a59533ab4e"
+

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.env*
+!.env.example
+.wrangler/
+supabase/.temp/
+*.log
+.dev.vars
+.DS_Store
+coverage/

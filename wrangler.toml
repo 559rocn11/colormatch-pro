@@ -1,0 +1,10 @@
+name = "colormatch-pro"
+main = "src/index.js"
+compatibility_date = "2026-08-09"
+
+[assets]
+directory = "./public"
+
+[[kv_namespaces]]
+binding = "STMP_KV"
+id = "51d1caca9e8d42a6963bd7a59533ab4e"
